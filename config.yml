@@ -1,0 +1,12 @@
+exec: {}
+in:
+    type: file
+    paths: [test.csv]
+out:
+    type: vertica 
+    host: 127.0.0.1
+    username: dbadmin
+    password: xxxxxxx
+    database: vdb
+    schema: sandbox
+    table: embulk_test
