@@ -1,32 +1,38 @@
-# Embulk input/output plugin for Vertica
+# Vertica output plugin for Embulk
 
-This Embulk output plugin writes record to a json column of a table.
+## Overview
 
-## Installation
+* **Plugin type**: output
+* **Load all or nothing**: no
+* **Resume supported**: no
+* **Cleanup supported**: yes
 
-Add this line to your application's Gemfile:
+## Configuration
 
-```ruby
-gem 'embulk'
-gem 'embulk-plugin-vertica'
+- **host**: hostname (string, default: localhost)
+- **port**: port number (integer, default: 5433)
+- **username**: username (string, required)
+- **password**: password (string, default: '')
+- **database**: database name (string, default: vdb)
+- **schema**:   schema name (string, default: public)
+- **table**:    table name (string, required)
+
+## Example
+
+```yaml
+out:
+  type: vertica 
+  host: 127.0.0.1
+  username: dbadmin
+  password: xxxxxxx
+  database: vdb
+  schema: sandbox
+  table: embulk_test
 ```
 
-And then execute:
 
-    $ bundle
+## Build
 
-Or install it yourself as:
-
-    $ gem install embulk-plugin-vertica
-
-## Usage
-
-TODO: Write usage instructions here
-
-## Contributing
-
-1. Fork it ( https://github.com/[my-github-username]/embulk-plugin-vertica/fork )
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+```
+$ rake
+```

@@ -1,4 +1,3 @@
-exec: {}
 in:
     type: file
     paths: [test.csv]
