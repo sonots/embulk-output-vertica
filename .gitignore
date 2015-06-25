@@ -13,3 +13,5 @@
 *.a
 mkmf.log
 vendor
+.ruby-version
+example2.yml

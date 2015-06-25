@@ -1,15 +1,10 @@
-# coding: utf-8
-lib = File.expand_path('../lib', __FILE__)
-$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'embulk/plugin/vertica/version'
-
 Gem::Specification.new do |spec|
-  spec.name          = "embulk-plugin-vertica"
-  spec.version       = Embulk::Plugin::Vertica::VERSION
+  spec.name          = "embulk-output-vertica"
+  spec.version       = "0.1.0"
   spec.authors       = ["eiji.sekiya"]
   spec.email         = ["eiji.sekiya.0326@gmail.com"]
-  spec.summary       = %q{Embulk plugin for vertica.}
-  spec.description   = spec.summary
+  spec.summary       = "Vertica output plugin for Embulk"
+  spec.description   = "Dump records to vertica"
   spec.homepage      = "https://github.com/eratostennis/embulk-plugin-vertica"
   spec.license       = "MIT"
 
@@ -18,8 +13,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
+  spec.add_dependency "jvertica", "~> 0.2"
   spec.add_development_dependency "bundler", "~> 1.7"
   spec.add_development_dependency "rake", "~> 10.0"
-
-  spec.add_dependency "vertica", "~> 0.11.2"
 end
