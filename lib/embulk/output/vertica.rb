@@ -10,14 +10,19 @@ module Embulk
 
       def self.transaction(config, schema, processor_count, &control)
         task = {
-          'host'     => config.param('host',     :string,  :default => 'localhost'),
-          'port'     => config.param('port',     :integer, :default => 5433),
-          'username' => config.param('username', :string),
-          'password' => config.param('password', :string,  :default => ''),
-          'database' => config.param('database', :string,  :default => 'vdb'),
-          'schema'   => config.param('schema',   :string,  :default => 'public'),
-          'table'    => config.param('table',    :string),
+          'host'      => config.param('host',      :string,  :default => 'localhost'),
+          'port'      => config.param('port',      :integer, :default => 5433),
+          'username'  => config.param('username',  :string),
+          'password'  => config.param('password',  :string,  :default => ''),
+          'database'  => config.param('database',  :string,  :default => 'vdb'),
+          'schema'    => config.param('schema',    :string,  :default => 'public'),
+          'table'     => config.param('table',     :string),
+          'copy_mode' => config.param('copy_mode', :string, :default => 'AUTO'),
         }
+
+        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase)
+          raise ConfigError, "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
+        end
 
         now = Time.now
         unique_name = "%08x%08x" % [now.tv_sec, now.tv_nsec]
@@ -96,7 +101,8 @@ module Embulk
       end
 
       def add(page)
-        sql = "COPY #{@task['schema']}.#{@task['temp_table']} FROM STDIN DELIMITER ',' NO COMMIT"
+        sql = "COPY #{@task['schema']}.#{@task['temp_table']} FROM STDIN DELIMITER ',' #{@task['copy_mode']} NO COMMIT"
+        Embulk.logger.debug sql
         @jv.copy(sql) do |stdin|
           page.each_with_index do |record, idx|
             stdin << record.map {|v| ::Jvertica.quote(v) }.join(",") << "\n"

@@ -16,6 +16,7 @@
 - **database**: database name (string, default: vdb)
 - **schema**:   schema name (string, default: public)
 - **table**:    table name (string, required)
+- **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO)
 
 ## Example
 
@@ -28,6 +29,7 @@ out:
   database: vdb
   schema: sandbox
   table: embulk_test
+  copy_mode: DIRECT
 ```
 
 
@@ -38,7 +40,7 @@ Run example:
 ```
 $ embulk gem install embulk-input-random
 $ embulk gem install jvertica
-$ embulk run -I lib example.yml
+$ embulk run -I lib -l debug example.yml
 ```
 
 Release gem:
