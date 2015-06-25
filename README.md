@@ -38,9 +38,8 @@ out:
 Run example:
 
 ```
-$ embulk gem install embulk-input-random
-$ embulk gem install jvertica
-$ embulk run -I lib -l debug example.yml
+$ bundle install
+$ bundle exec embulk run -l debug example.yml
 ```
 
 Release gem:

@@ -1,4 +1,7 @@
 source 'https://rubygems.org'
 
-# Specify your gem's dependencies in embulk-plugin-vertica.gemspec
 gemspec
+gem 'embulk'
+gem 'embulk-input-random'
+gem 'pry'
+gem 'pry-nav'
