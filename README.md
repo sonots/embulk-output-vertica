@@ -31,8 +31,18 @@ out:
 ```
 
 
-## Build
+## Development
+
+Run example:
 
 ```
-$ rake
+$ embulk gem install embulk-input-random
+$ embulk gem install jvertica
+$ embulk run -I lib example.yml
+```
+
+Release gem:
+
+```
+$ bundle exec rake release
 ```

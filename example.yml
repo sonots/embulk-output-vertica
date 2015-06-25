@@ -1,11 +1,15 @@
 in:
-    type: file
-    paths: [test.csv]
+  type: random
+  rows: 100
+  schema:
+    id: primary_key
+    name: string
+    score: integer
 out:
-    type: vertica 
-    host: 127.0.0.1
-    username: dbadmin
-    password: xxxxxxx
-    database: vdb
-    schema: sandbox
-    table: embulk_test
+  type: vertica 
+  host: 127.0.0.1
+  username: dbadmin
+  password: xxxxxxx
+  database: vdb
+  schema: sandbox
+  table: embulk_test

@@ -1,4 +1,4 @@
-require 'vertica'
+require 'jvertica'
 
 module Embulk
   module Output
@@ -39,7 +39,7 @@ module Embulk
             # 'insert into "DEST" ("COL") select "COL" from "TEMP"'
             jv.query %[create table if not exists #{task['schema']}.#{task['table']} (#{sql_schema})]
             jv.query %[insert into #{task['schema']}.#{task['table']} select * from #{task['schema']}.#{task['temp_table']}]
-            jv.query %[COMMIT]
+            jv.commit
           end
         ensure
           connect(task) do |jv|
@@ -96,13 +96,13 @@ module Embulk
       end
 
       def add(page)
-        sql = "COPY #{@task['schema']}.#{@task['temp_table']} FROM STDIN DELIMITER ','"
+        sql = "COPY #{@task['schema']}.#{@task['temp_table']} FROM STDIN DELIMITER ',' NO COMMIT"
         @jv.copy(sql) do |stdin|
           page.each_with_index do |record, idx|
-            stdin << record.map {|v| ::Vertica.quote(v) }.join(",")
-            stdin << "\n"
+            stdin << record.map {|v| ::Jvertica.quote(v) }.join(",") << "\n"
           end
         end
+        @jv.commit
       end
 
       def finish
