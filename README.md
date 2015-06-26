@@ -3,9 +3,9 @@
 ## Overview
 
 * **Plugin type**: output
-* **Load all or nothing**: no
 * **Resume supported**: no
-* **Cleanup supported**: yes
+* **Cleanup supported**: no
+* **Dynamic table creating**: yes
 
 ## Configuration
 
@@ -17,6 +17,8 @@
 - **schema**:   schema name (string, default: public)
 - **table**:    table name (string, required)
 - **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO)
+- **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
+  - **type**: type of a column when this plugin creates new tables (e.g. VARCHAR(255), INTEGER NOT NULL UNIQUE). This used when this plugin creates intermediate tables (insert and truncate_insert modes), and when it creates nonexistent target table automatically. (string, default: depends on input column type. INT (same with BIGINT in vertica) if input column type is long, BOOLEAN if boolean, FLOAT (same with DOUBLE PRECISION in vertica) if double, VARCHAR if string, TIMESTAMP if timestamp)
 
 ## Example
 
@@ -30,6 +32,9 @@ out:
   schema: sandbox
   table: embulk_test
   copy_mode: DIRECT
+  column_options:
+    id: {type: INT}
+    name: {type: VARCHAR(255)}
 ```
 
 

@@ -13,3 +13,9 @@ out:
   database: vdb
   schema: sandbox
   table: embulk_test
+  copy_mode: direct
+  column_options:
+    id: {type: INT}
+    name: {type: VARCHAR}
+    score: {type: INT}
+

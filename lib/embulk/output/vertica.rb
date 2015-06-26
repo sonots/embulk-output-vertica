@@ -10,14 +10,15 @@ module Embulk
 
       def self.transaction(config, schema, processor_count, &control)
         task = {
-          'host'      => config.param('host',      :string,  :default => 'localhost'),
-          'port'      => config.param('port',      :integer, :default => 5433),
-          'username'  => config.param('username',  :string),
-          'password'  => config.param('password',  :string,  :default => ''),
-          'database'  => config.param('database',  :string,  :default => 'vdb'),
-          'schema'    => config.param('schema',    :string,  :default => 'public'),
-          'table'     => config.param('table',     :string),
-          'copy_mode' => config.param('copy_mode', :string, :default => 'AUTO'),
+          'host'           => config.param('host',           :string,  :default => 'localhost'),
+          'port'           => config.param('port',           :integer, :default => 5433),
+          'username'       => config.param('username',       :string),
+          'password'       => config.param('password',       :string,  :default => ''),
+          'database'       => config.param('database',       :string,  :default => 'vdb'),
+          'schema'         => config.param('schema',         :string,  :default => 'public'),
+          'table'          => config.param('table',          :string),
+          'copy_mode'      => config.param('copy_mode',      :string,  :default => 'AUTO'),
+          'column_options' => config.param('column_options', :hash,    :default => {}),
         }
 
         unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase)
@@ -28,7 +29,7 @@ module Embulk
         unique_name = "%08x%08x" % [now.tv_sec, now.tv_nsec]
         task['temp_table'] = "#{task['table']}_LOAD_TEMP_#{unique_name}"
 
-        sql_schema = self.to_vertica_schema schema
+        sql_schema = self.to_vertica_schema(schema, task['column_options'])
 
         connect(task) do |jv|
           # drop table if exists "DEST"
@@ -74,18 +75,20 @@ module Embulk
         jv
       end
 
-      def self.to_vertica_schema(schema)
-        schema.names.zip(schema.types)
-          .map { |name, type| "#{name} #{to_sql_type(type)}" }
-          .join(',')
+      def self.to_vertica_schema(schema, column_options)
+        schema.names.zip(schema.types).map do |name, type|
+          sql_type = (column_options[name] and column_options[name]['type']) ?
+            column_options[name]['type'] : to_sql_type(type)
+          "#{name} #{sql_type}"
+        end.join(',')
       end
 
       def self.to_sql_type(type)
         case type
         when :boolean then 'BOOLEAN'
-        when :long then 'INT'
-        when :double then 'FLOAT'
-        when :string then 'VARCHAR'
+        when :long then 'INT' # BIGINT is a synonym for INT in vertica
+        when :double then 'FLOAT' # DOUBLE PRECISION is a synonym for FLOAT in vertica
+        when :string then 'VARCHAR' # LONG VARCHAR is not recommended
         when :timestamp then 'TIMESTAMP'
         else raise NotSupportedType, "embulk-output-vertica cannot take column type #{type}"
         end
