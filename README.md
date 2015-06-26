@@ -52,3 +52,7 @@ Release gem:
 ```
 $ bundle exec rake release
 ```
+
+## ChangeLog
+
+[CHANGELOG.md](CHANGELOG.md)
