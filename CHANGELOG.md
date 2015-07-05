@@ -1,3 +1,10 @@
+# 0.1.3 (2015/07/05)
+
+Enhancements:
+
+* Escape schama, table names
+* Add `abort_on_error` option
+
 # 0.1.2 (2015/06/26)
 
 Enhancements:
