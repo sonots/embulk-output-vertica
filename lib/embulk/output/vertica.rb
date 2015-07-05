@@ -29,13 +29,17 @@ module Embulk
         unique_name = "%08x%08x" % [now.tv_sec, now.tv_nsec]
         task['temp_table'] = "#{task['table']}_LOAD_TEMP_#{unique_name}"
 
-        sql_schema = self.to_vertica_schema(schema, task['column_options'])
+        sql_schema = self.to_sql_schema(schema, task['column_options'])
+
+        quoted_schema     = ::Jvertica.quote_identifier(task['schema'])
+        quoted_table      = ::Jvertica.quote_identifier(task['table'])
+        quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
 
         connect(task) do |jv|
           # drop table if exists "DEST"
           # 'create table if exists "TEMP" ("COL" json)'
-          jv.query %[drop table if exists #{task['schema']}.#{task['temp_table']}]
-          jv.query %[create table #{task['schema']}.#{task['temp_table']} (#{sql_schema})]
+          jv.query %[drop table if exists #{quoted_schema}.#{quoted_temp_table}]
+          jv.query %[create table #{quoted_schema}.#{quoted_temp_table} (#{sql_schema})]
         end
 
         begin
@@ -43,14 +47,14 @@ module Embulk
           connect(task) do |jv|
             # create table if not exists "DEST" ("COL" json)
             # 'insert into "DEST" ("COL") select "COL" from "TEMP"'
-            jv.query %[create table if not exists #{task['schema']}.#{task['table']} (#{sql_schema})]
-            jv.query %[insert into #{task['schema']}.#{task['table']} select * from #{task['schema']}.#{task['temp_table']}]
+            jv.query %[create table if not exists #{quoted_schema}.#{quoted_table} (#{sql_schema})]
+            jv.query %[insert into #{quoted_schema}.#{quoted_table} select * from #{quoted_schema}.#{quoted_temp_table}]
             jv.commit
           end
         ensure
           connect(task) do |jv|
             # 'drop table if exists TEMP'
-            jv.query %[drop table if exists #{task['schema']}.#{task['temp_table']}]
+            jv.query %[drop table if exists #{quoted_schema}.#{quoted_temp_table}]
           end
         end
         return {}
@@ -75,11 +79,14 @@ module Embulk
         jv
       end
 
-      def self.to_vertica_schema(schema, column_options)
-        schema.names.zip(schema.types).map do |name, type|
-          sql_type = (column_options[name] and column_options[name]['type']) ?
-            column_options[name]['type'] : to_sql_type(type)
-          "#{name} #{sql_type}"
+      # @param [Schema] schema embulk defined column types
+      # @param [Hash]   column_options user defined column types
+      # @return [String] sql schema used to CREATE TABLE
+      def self.to_sql_schema(schema, column_options)
+        schema.names.zip(schema.types).map do |column_name, type|
+          sql_type = (column_options[column_name] and column_options[column_name]['type']) ?
+            column_options[column_name]['type'] : to_sql_type(type)
+          "#{::Jvertica.quote_identifier(column_name)} #{sql_type}"
         end.join(',')
       end
 
@@ -104,9 +111,7 @@ module Embulk
       end
 
       def add(page)
-        sql = "COPY #{@task['schema']}.#{@task['temp_table']} FROM STDIN DELIMITER ',' #{@task['copy_mode']} NO COMMIT"
-        Embulk.logger.debug sql
-        @jv.copy(sql) do |stdin|
+        @jv.copy(copy_sql) do |stdin|
           page.each_with_index do |record, idx|
             stdin << record.map {|v| ::Jvertica.quote(v) }.join(",") << "\n"
           end
@@ -122,6 +127,17 @@ module Embulk
 
       def commit
         {}
+      end
+
+      private
+
+      def copy_sql
+        quoted_schema     = ::Jvertica.quote_identifier(@task['schema'])
+        quoted_temp_table = ::Jvertica.quote_identifier(@task['temp_table'])
+        copy_mode         = @task['copy_mode']
+        sql = "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN DELIMITER ',' #{copy_mode} NO COMMIT"
+        Embulk.logger.debug sql
+        sql
       end
     end
   end
