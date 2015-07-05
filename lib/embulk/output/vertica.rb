@@ -18,6 +18,7 @@ module Embulk
           'schema'         => config.param('schema',         :string,  :default => 'public'),
           'table'          => config.param('table',          :string),
           'copy_mode'      => config.param('copy_mode',      :string,  :default => 'AUTO'),
+          'abort_on_error' => config.param('abort_on_error', :bool,    :default => false),
           'column_options' => config.param('column_options', :hash,    :default => {}),
         }
 
@@ -135,7 +136,8 @@ module Embulk
         quoted_schema     = ::Jvertica.quote_identifier(@task['schema'])
         quoted_temp_table = ::Jvertica.quote_identifier(@task['temp_table'])
         copy_mode         = @task['copy_mode']
-        sql = "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN DELIMITER ',' #{copy_mode} NO COMMIT"
+        abort_on_error    = @task['abort_on_error'] ? ' ABORT ON ERROR' : ''
+        sql = "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN DELIMITER ',' #{copy_mode}#{abort_on_error} NO COMMIT"
         Embulk.logger.debug sql
         sql
       end
