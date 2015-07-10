@@ -1,3 +1,9 @@
+# 0.1.4 (2015/07/10)
+
+Fixes:
+
+* Just fix gemspec
+
 # 0.1.3 (2015/07/05)
 
 Enhancements:
