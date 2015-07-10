@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["eiji.sekiya.0326@gmail.com", "sonots@gmail.com"]
   spec.summary       = "Vertica output plugin for Embulk"
   spec.description   = "Dump records to vertica"
-  spec.homepage      = "https://github.com/eratostennis/embulk-plugin-vertica"
+  spec.homepage      = "https://github.com/eratostennis/embulk-output-vertica"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
