@@ -1,3 +1,9 @@
+# 0.1.5 (2015/07/24)
+
+Fixes:
+
+* Use PARSER fjsonparser() instead of DELIMITER ',', otherwise escape is too difficult to do
+
 # 0.1.4 (2015/07/10)
 
 Fixes:
