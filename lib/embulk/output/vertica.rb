@@ -140,7 +140,7 @@ module Embulk
       end
 
       def self.query(conn, sql)
-        Embulk.logger.debug sql
+        Embulk.logger.debug "embulk-output-vertica: #{sql}"
         conn.query(sql)
       end
 
@@ -149,7 +149,7 @@ module Embulk
       end
 
       def copy(conn, sql, &block)
-        Embulk.logger.debug sql
+        Embulk.logger.debug "embulk-output-vertica: #{sql}"
         conn.copy(sql, &block)
       end
 
