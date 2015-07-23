@@ -42,28 +42,24 @@ module Embulk
         quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
 
         connect(task) do |jv|
-          # drop table if exists "DEST"
-          # 'create table if exists "TEMP" ("COL" json)'
-          if task['mode'] == 'replace'
-            jv.query %[drop table if exists #{quoted_schema}.#{quoted_table}]
+          if task['mode'] == 'REPLACE'
+            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}])
           end
-          jv.query %[drop table if exists #{quoted_schema}.#{quoted_temp_table}]
-          jv.query %[create table #{quoted_schema}.#{quoted_temp_table} (#{sql_schema})]
+          query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
+          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema})])
         end
 
         begin
           yield(task)
           connect(task) do |jv|
-            # create table if not exists "DEST" ("COL" json)
-            # 'insert into "DEST" ("COL") select "COL" from "TEMP"'
-            jv.query %[create table if not exists #{quoted_schema}.#{quoted_table} (#{sql_schema})]
-            jv.query %[insert into #{quoted_schema}.#{quoted_table} select * from #{quoted_schema}.#{quoted_temp_table}]
+            query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema})])
+            query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
             jv.commit
           end
         ensure
           connect(task) do |jv|
-            # 'drop table if exists TEMP'
-            jv.query %[drop table if exists #{quoted_schema}.#{quoted_temp_table}]
+            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
+            Embulk.logger.debug { query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") }
           end
         end
         return {}
@@ -71,7 +67,6 @@ module Embulk
 
       def initialize(task, schema, index)
         super
-        @column_names = schema.names
         @jv = self.class.connect(task)
       end
 
@@ -80,7 +75,7 @@ module Embulk
       end
 
       def add(page)
-        @jv.copy(copy_sql) do |stdin|
+        copy(@jv, copy_sql) do |stdin|
           page.each do |record|
             stdin << to_json(record) << "\n"
           end
@@ -124,8 +119,11 @@ module Embulk
       # @return [String] sql schema used to CREATE TABLE
       def self.to_sql_schema(schema, column_options)
         schema.names.zip(schema.types).map do |column_name, type|
-          sql_type = (column_options[column_name] and column_options[column_name]['type']) ?
-            column_options[column_name]['type'] : to_sql_type(type)
+          if column_options[column_name] and column_options[column_name]['type']
+            sql_type = column_options[column_name]['type']
+          else
+            sql_type = to_sql_type(type)
+          end
           "#{::Jvertica.quote_identifier(column_name)} #{sql_type}"
         end.join(',')
       end
@@ -141,19 +139,48 @@ module Embulk
         end
       end
 
-      def to_json(record)
-        Hash[*(@column_names.zip(record).flatten!(1))].to_json
+      def self.query(conn, sql)
+        Embulk.logger.debug sql
+        conn.query(sql)
+      end
+
+      def query(conn, sql)
+        self.class.query(conn, sql)
+      end
+
+      def copy(conn, sql, &block)
+        Embulk.logger.debug sql
+        conn.copy(sql, &block)
       end
 
       def copy_sql
-        quoted_schema     = ::Jvertica.quote_identifier(@task['schema'])
-        quoted_temp_table = ::Jvertica.quote_identifier(@task['temp_table'])
-        copy_mode         = @task['copy_mode']
-        abort_on_error    = @task['abort_on_error'] ? ' ABORT ON ERROR' : ''
-        sql = "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN PARSER fjsonparser() #{copy_mode}#{abort_on_error} NO COMMIT"
-        Embulk.logger.debug sql
-        sql
+        @copy_sql ||= "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN PARSER fjsonparser() #{copy_mode}#{abort_on_error} NO COMMIT"
       end
+
+      def to_json(record)
+        Hash[*(schema.names.zip(record).flatten!(1))].to_json
+      end
+
+      def quoted_schema
+        ::Jvertica.quote_identifier(@task['schema'])
+      end
+
+      def quoted_table
+        ::Jvertica.quote_identifier(@task['table'])
+      end
+
+      def quoted_temp_table
+        ::Jvertica.quote_identifier(@task['temp_table'])
+      end
+
+      def copy_mode
+        @task['copy_mode']
+      end
+
+      def abort_on_error
+        @task['abort_on_error'] ? ' ABORT ON ERROR' : ''
+      end
+
     end
   end
 end
