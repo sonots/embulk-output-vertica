@@ -19,7 +19,12 @@
 - **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO)
 - **abort_on_error**: Stops the COPY command if a row is rejected and rolls back the command. No data is loaded. (bool, default: false)
 - **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
-  - **type**: type of a column when this plugin creates new tables (e.g. VARCHAR(255), INTEGER NOT NULL UNIQUE). This used when this plugin creates intermediate tables (insert and truncate_insert modes), and when it creates nonexistent target table automatically. (string, default: depends on input column type. INT (same with BIGINT in vertica) if input column type is long, BOOLEAN if boolean, FLOAT (same with DOUBLE PRECISION in vertica) if double, VARCHAR if string, TIMESTAMP if timestamp)
+  - **type**: type of a column when this plugin creates new tables such as `VARCHAR(255)`, `INTEGER NOT NULL UNIQUE`. This is used on creating intermediate tables (insert and truncate_insert modes) and on creating a new target table. (string, default: depends on input column type, see below)
+    - `INT` (same with `BIGINT` in vertica) for `long`
+    - `BOOLEAN` for `boolean`
+    - `FLOAT` (same with `DOUBLE PRECISION` in vertica) for `double`
+    - `VARCHAR` for `string`
+    - `TIMESTAMP` for `timestamp`
 
 ## Example
 
