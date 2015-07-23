@@ -17,12 +17,17 @@ module Embulk
           'database'       => config.param('database',       :string,  :default => 'vdb'),
           'schema'         => config.param('schema',         :string,  :default => 'public'),
           'table'          => config.param('table',          :string),
+          'mode'           => config.param('mode',           :string,  :default => 'insert'),
           'copy_mode'      => config.param('copy_mode',      :string,  :default => 'AUTO'),
           'abort_on_error' => config.param('abort_on_error', :bool,    :default => false),
           'column_options' => config.param('column_options', :hash,    :default => {}),
         }
 
-        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase)
+        unless %w[INSERT REPLACE].include?(task['mode'].upcase!)
+          raise ConfigError, "`mode` must be one of INSERT, REPLACE"
+        end
+
+        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase!)
           raise ConfigError, "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
         end
 
@@ -39,6 +44,9 @@ module Embulk
         connect(task) do |jv|
           # drop table if exists "DEST"
           # 'create table if exists "TEMP" ("COL" json)'
+          if task['mode'] == 'replace'
+            jv.query %[drop table if exists #{quoted_schema}.#{quoted_table}]
+          end
           jv.query %[drop table if exists #{quoted_schema}.#{quoted_temp_table}]
           jv.query %[create table #{quoted_schema}.#{quoted_temp_table} (#{sql_schema})]
         end
