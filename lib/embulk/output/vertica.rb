@@ -61,6 +61,37 @@ module Embulk
         return {}
       end
 
+      def initialize(task, schema, index)
+        super
+        @column_names = schema.names
+        @jv = self.class.connect(task)
+      end
+
+      def close
+        @jv.close
+      end
+
+      def add(page)
+        @jv.copy(copy_sql) do |stdin|
+          page.each do |record|
+            stdin << to_json(record) << "\n"
+          end
+        end
+        @jv.commit
+      end
+
+      def finish
+      end
+
+      def abort
+      end
+
+      def commit
+        {}
+      end
+
+      private
+
       def self.connect(task)
         jv = ::Jvertica.connect({
           host: task['host'],
@@ -102,42 +133,16 @@ module Embulk
         end
       end
 
-      def initialize(task, schema, index)
-        super
-        @jv = self.class.connect(task)
+      def to_json(record)
+        Hash[*(@column_names.zip(record).flatten!(1))].to_json
       end
-
-      def close
-        @jv.close
-      end
-
-      def add(page)
-        @jv.copy(copy_sql) do |stdin|
-          page.each_with_index do |record, idx|
-            stdin << record.map {|v| ::Jvertica.quote(v) }.join(",") << "\n"
-          end
-        end
-        @jv.commit
-      end
-
-      def finish
-      end
-
-      def abort
-      end
-
-      def commit
-        {}
-      end
-
-      private
 
       def copy_sql
         quoted_schema     = ::Jvertica.quote_identifier(@task['schema'])
         quoted_temp_table = ::Jvertica.quote_identifier(@task['temp_table'])
         copy_mode         = @task['copy_mode']
         abort_on_error    = @task['abort_on_error'] ? ' ABORT ON ERROR' : ''
-        sql = "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN DELIMITER ',' #{copy_mode}#{abort_on_error} NO COMMIT"
+        sql = "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN PARSER fjsonparser() #{copy_mode}#{abort_on_error} NO COMMIT"
         Embulk.logger.debug sql
         sql
       end
