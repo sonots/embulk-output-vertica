@@ -1,3 +1,9 @@
+# 0.1.6 (2015/07/24)
+
+Enhancements:
+
+* Enhancement of debug log
+
 # 0.1.5 (2015/07/24)
 
 Fixes:
