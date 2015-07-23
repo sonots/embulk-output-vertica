@@ -59,7 +59,7 @@ module Embulk
         ensure
           connect(task) do |jv|
             query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-            Embulk.logger.debug { query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") }
+            Embulk.logger.debug { query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil }
           end
         end
         return {}
