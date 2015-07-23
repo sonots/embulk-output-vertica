@@ -16,7 +16,8 @@
 - **database**: database name (string, default: vdb)
 - **schema**:   schema name (string, default: public)
 - **table**:    table name (string, required)
-- **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO)
+- **mode**:     "insert", or "replace". See bellow. (string, default: insert)
+- **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO) See vertica documents for details.
 - **abort_on_error**: Stops the COPY command if a row is rejected and rolls back the command. No data is loaded. (bool, default: false)
 - **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
   - **type**: type of a column when this plugin creates new tables such as `VARCHAR(255)`, `INTEGER NOT NULL UNIQUE`. This is used on creating intermediate tables (insert and truncate_insert modes) and on creating a new target table. (string, default: depends on input column type, see below)
@@ -25,6 +26,15 @@
     - `FLOAT` (same with `DOUBLE PRECISION` in vertica) for `double`
     - `VARCHAR` for `string`
     - `TIMESTAMP` for `timestamp`
+
+### Modes
+
+* **insert**:
+  * Behavior: This mode copys rows to some intermediate tables first. If all those tasks run correctly, runs INSERT INTO <target_table> SELECT * FROM <intermediate_table>
+  * Transactional: Yes if `abort_on_error` option is used
+* **replace**:
+  * Behavior: Same with insert mode excepting that it drop the target table first.
+  * Transactional: Yes if `abort_on_error` option is used
 
 ## Example
 

@@ -1,10 +1,27 @@
+# in:
+#   type: random
+#   rows: 100
+#   schema:
+#     id: primary_key
+#     name: string
+#     score: integer
 in:
-  type: random
-  rows: 100
-  schema:
-    id: primary_key
-    name: string
-    score: integer
+  type: file
+  path_prefix: example.csv
+  parser:
+    type: csv
+    charset: UTF-8
+    newline: CRLF
+    null_string: 'NULL'
+    skip_header_lines: 1
+    comment_line_marker: '#'
+    columns:
+      - {name: date,  type: timestamp, format: "%Y-%m-%d"}
+      - {name: foo,   type: string}
+      - {name: bar,   type: string}
+      - {name: id,    type: long}
+      - {name: name,  type: string}
+      - {name: score, type: double} 
 out:
   type: vertica 
   host: 127.0.0.1
@@ -15,7 +32,6 @@ out:
   table: embulk_test
   copy_mode: direct
   column_options:
+    date: {type: DATE}
     id: {type: INT}
     name: {type: VARCHAR}
-    score: {type: INT}
-
