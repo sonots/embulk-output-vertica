@@ -19,7 +19,7 @@
 - **mode**:     "insert", or "replace". See bellow. (string, default: insert)
 - **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO) See vertica documents for details.
 - **abort_on_error**: Stops the COPY command if a row is rejected and rolls back the command. No data is loaded. (bool, default: false)
-- **reject_on_materialized_type_error**: Use `reject_on_materialized_type_error` option for fjsonparser(). This rejects rows if any of olumn types and value types do not fit. See vertica documents for details. (bool, default: false)
+- **reject_on_materialized_type_error**: Use `reject_on_materialized_type_error` option for fjsonparser(). This rejects rows if any of olumn types and value types do not fit. ex) double value into INT column fails. See vertica documents for details. (bool, default: false)
 - **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
   - **type**: type of a column when this plugin creates new tables such as `VARCHAR(255)`, `INTEGER NOT NULL UNIQUE`. This is used on creating intermediate tables (insert and truncate_insert modes) and on creating a new target table. (string, default: depends on input column type, see below)
     - long: `INT` (same with `BIGINT` in vertica)

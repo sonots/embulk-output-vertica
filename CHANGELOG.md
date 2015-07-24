@@ -1,3 +1,9 @@
+# 0.1.7 (2015/07/25)
+
+Enhancements:
+
+* Add reject_on_materialized_type_error option
+
 # 0.1.6 (2015/07/24)
 
 Enhancements:
