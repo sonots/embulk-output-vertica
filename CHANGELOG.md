@@ -1,3 +1,9 @@
+# 0.2.2 (2015/07/24)
+
+Changes:
+
+* Change some log level from debug to info
+
 # 0.2.1 (2015/07/24)
 
 Fixes:
