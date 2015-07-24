@@ -1,3 +1,9 @@
+# 0.2.0 (2015/07/24)
+
+Enhancements:
+
+* Add `default_timezone` option
+
 # 0.1.9 (2015/07/24)
 
 Enhancements:
