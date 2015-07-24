@@ -1,16 +1,22 @@
-# 0.1.7 (2015/07/25)
+# 0.1.8 (2015/07/24)
+
+Enhancements:
+
+* Support value_type, timezone_format, timezone option for column_options[
+
+# 0.1.7 (2015/07/24)
 
 Enhancements:
 
 * Add reject_on_materialized_type_error option
 
-# 0.1.6 (2015/07/24)
+# 0.1.6 (2015/07/23)
 
 Enhancements:
 
 * Enhancement of debug log
 
-# 0.1.5 (2015/07/24)
+# 0.1.5 (2015/07/23)
 
 Fixes:
 
