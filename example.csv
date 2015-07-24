@@ -1,4 +1,4 @@
-date,test,foo,bar,id,name,score
+timestamp_date,string_date,foo,bar,id,name,score
 2015-07-13,2015-07-13,,bar,90,l6lTsvxdlcTfcqx2c0lQSd9HejVQg40W25f0wGNQViY,903.4
 2015-07-13,2015-07-13,,bar,91,XoALSEQg9ycuGqrEWHOb8vdrLbheZSgFO53Wr3mciXY,394.5
 2015-07-13,2015-07-13,,bar,92,0hgDRI_mijs5w7rkiLIe__LEayOOLxL0qVT1IHa5QBw,810.9

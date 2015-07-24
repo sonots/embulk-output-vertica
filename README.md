@@ -33,8 +33,8 @@
     - double:    `boolean` (true), `long` (to\_i), `double`, `string` (to\_s), `timestamp` (Time.at)
     - string:    `boolean` (true), `long` (to\_i), `double` (to\_f), `string`, `timestamp` (Time.strptime)
     - timestamp: `boolean` (true), `long` (to\_i), `double` (to\_f), `string` (strftime), `timestamp`
-  - **timestamp_format**: If input column type (embulk type) is string and value_type is timestamp or date, this plugin needs the timestamp format of the string. Also, if input column type (embulk type) is timestamp and value_type is string, this plugin needs the timestamp format of the string. 
-  - **timezone**: Specify timezone to convert into `timestamp` or from `timestamp` (string, default is "UTC").
+  - **timestamp_format**: timestamp format to convert into/from `timestamp` (string, default is "%Y-%m-%d %H:%M:%S %z")
+  - **timezone**: timezone to convert into/from `timestamp` (string, default is "UTC").
 
 ### Modes
 
@@ -59,9 +59,9 @@ out:
   copy_mode: DIRECT
   abort_on_error: true
   column_options:
-    id: {type: INT}
+    id:   {type: INT}
     name: {type: VARCHAR(255)}
-    date: {type: DATE, value_type: Date, timezone: "+09:00"}
+    date: {type: DATE, value_type: timezone, timezone: "+09:00"}
 ```
 
 ## Development
