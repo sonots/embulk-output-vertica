@@ -1,3 +1,9 @@
+# 0.2.1 (2015/07/24)
+
+Fixes:
+
+* Fix to support timezone 'UTC'
+
 # 0.2.0 (2015/07/24)
 
 Enhancements:
