@@ -30,7 +30,10 @@ out:
   database: vdb
   schema: sandbox
   table: embulk_test
+  mode: replace
   copy_mode: direct
+  abort_on_error: true
+  reject_on_materialized_type_error: true
   column_options:
     date: {type: DATE}
     id: {type: INT}

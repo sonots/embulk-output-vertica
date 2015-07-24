@@ -20,6 +20,7 @@ module Embulk
           'mode'           => config.param('mode',           :string,  :default => 'insert'),
           'copy_mode'      => config.param('copy_mode',      :string,  :default => 'AUTO'),
           'abort_on_error' => config.param('abort_on_error', :bool,    :default => false),
+          'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
           'column_options' => config.param('column_options', :hash,    :default => {}),
         }
 
@@ -59,7 +60,7 @@ module Embulk
         ensure
           connect(task) do |jv|
             query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-            Embulk.logger.debug { query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil }
+            Embulk.logger.debug { "embulk-output-vertica: #{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
           end
         end
         return {}
@@ -75,12 +76,25 @@ module Embulk
       end
 
       def add(page)
-        copy(@jv, copy_sql) do |stdin|
-          page.each do |record|
-            stdin << to_json(record) << "\n"
+        json = nil # for log
+        begin
+          copy(@jv, copy_sql) do |stdin|
+            page.each do |record|
+              json = to_json(record)
+              stdin << json << "\n"
+            end
           end
+          Embulk.logger.debug "embulk-output-vertica: COMMIT!"
+          @jv.commit
+        rescue java.sql.SQLDataException => e
+          @jv.rollback
+          if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
+          else
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+          end
+          raise e
         end
-        @jv.commit
       end
 
       def finish
@@ -154,7 +168,7 @@ module Embulk
       end
 
       def copy_sql
-        @copy_sql ||= "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN PARSER fjsonparser() #{copy_mode}#{abort_on_error} NO COMMIT"
+        @copy_sql ||= "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN#{fjsonparser}#{copy_mode}#{abort_on_error} NO COMMIT"
       end
 
       def to_json(record)
@@ -174,13 +188,20 @@ module Embulk
       end
 
       def copy_mode
-        @task['copy_mode']
+        " #{@task['copy_mode']}"
       end
 
       def abort_on_error
         @task['abort_on_error'] ? ' ABORT ON ERROR' : ''
       end
 
+      def fjsonparser
+        " PARSER fjsonparser(#{reject_on_materialized_type_error})"
+      end
+
+      def reject_on_materialized_type_error
+        @task['reject_on_materialized_type_error'] ? 'reject_on_materialized_type_error=true' : ''
+      end
     end
   end
 end
