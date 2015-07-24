@@ -1,4 +1,5 @@
 require 'jvertica'
+require_relative 'vertica/value_converter_factory'
 
 module Embulk
   module Output
@@ -68,6 +69,8 @@ module Embulk
 
       def initialize(task, schema, index)
         super
+        @converters = ValueConverterFactory.create_converters(schema, task['column_options'])
+        Embulk.logger.debug { @converters.to_s }
         @jv = self.class.connect(task)
       end
 
@@ -172,7 +175,9 @@ module Embulk
       end
 
       def to_json(record)
-        Hash[*(schema.names.zip(record).flatten!(1))].to_json
+        Hash[*(schema.names.zip(record).map do |column_name, value|
+          [column_name, @converters[column_name].call(value)]
+        end.flatten!(1))].to_json
       end
 
       def quoted_schema
