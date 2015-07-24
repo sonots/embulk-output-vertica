@@ -22,11 +22,19 @@
 - **reject_on_materialized_type_error**: Use `reject_on_materialized_type_error` option for fjsonparser(). This rejects rows if any of olumn types and value types do not fit. ex) double value into INT column fails. See vertica documents for details. (bool, default: false)
 - **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
   - **type**: type of a column when this plugin creates new tables such as `VARCHAR(255)`, `INTEGER NOT NULL UNIQUE`. This is used on creating intermediate tables (insert and truncate_insert modes) and on creating a new target table. (string, default: depends on input column type, see below)
-    - long: `INT` (same with `BIGINT` in vertica)
-    - boolean: `BOOLEAN`
-    - double: `FLOAT` (same with `DOUBLE PRECISION` in vertica)
-    - string: `VARCHAR`
+    - boolean:   `BOOLEAN`
+    - long:      `INT` (same with `BIGINT` in vertica)
+    - double:    `FLOAT` (same with `DOUBLE PRECISION` in vertica)
+    - string:    `VARCHAR`
     - timestamp: `TIMESTAMP`
+  - **value_type**:  The types (embulk types) of values to convert (string, default: no conversion. See below for available types)
+    - boolean:   `boolean`, `string` (to\_s)
+    - long:      `boolean` (true), `long`, `double` (to\_f), `string` (to\_s), `timestamp` (Time.at)
+    - double:    `boolean` (true), `long` (to\_i), `double`, `string` (to\_s), `timestamp` (Time.at)
+    - string:    `boolean` (true), `long` (to\_i), `double` (to\_f), `string`, `timestamp` (Time.strptime)
+    - timestamp: `boolean` (true), `long` (to\_i), `double` (to\_f), `string` (strftime), `timestamp`
+  - **timestamp_format**: If input column type (embulk type) is string and value_type is timestamp or date, this plugin needs the timestamp format of the string. Also, if input column type (embulk type) is timestamp and value_type is string, this plugin needs the timestamp format of the string. 
+  - **timezone**: With format of "+HH:MM" "-HH:MM". `timestamp` column uses this (string, default is "+00:00").
 
 ### Modes
 
@@ -53,8 +61,12 @@ out:
   column_options:
     id: {type: INT}
     name: {type: VARCHAR(255)}
+    date: {type: DATE, value_type: Date, timezone: "+09:00"}
 ```
 
+## ToDo
+
+* Use timezone for string => timezone conversion
 
 ## Development
 
