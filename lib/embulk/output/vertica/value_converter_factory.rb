@@ -113,7 +113,7 @@ module Embulk
         def get_zone_offset(timezone)
           if NUMERIC_PATTERN === timezone
             Time.zone_offset(timezone)
-          elsif NAME_PATTERN === timezone
+          elsif NAME_PATTERN === timezone || 'UTC' == timezone
             tz = TZInfo::Timezone.get(timezone)
             tz.period_for_utc(Time.now).utc_total_offset
           else
