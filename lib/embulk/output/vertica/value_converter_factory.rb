@@ -1,8 +1,11 @@
+require 'time'
+require 'tzinfo'
+
 module Embulk
   module Output
     class Vertica < OutputPlugin
       class ValueConverterFactory
-        attr_reader :schema_type, :value_type, :timestamp_format, :timezone
+        attr_reader :schema_type, :value_type, :timestamp_format, :timezone, :zone_offset
 
         DEFAULT_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %z"
         DEFAULT_TIMEZONE         = "+00:00"
@@ -26,8 +29,9 @@ module Embulk
         def initialize(schema_type, value_type = nil, timestamp_format = nil, timezone = nil)
           @schema_type = schema_type
           @value_type = value_type || schema_type.to_s
-          @timestampt_format = timestamp_format || DEFAULT_TIMESTAMP_FORMAT
+          @timestamp_format = timestamp_format || DEFAULT_TIMESTAMP_FORMAT
           @timezone = timezone || DEFAULT_TIMEZONE
+          @zone_offset = get_zone_offset(@timezone)
         end
 
         def create_converter
@@ -55,7 +59,7 @@ module Embulk
           when 'long'       then Proc.new {|val| val }
           when 'double'     then Proc.new {|val| val.to_f }
           when 'string'     then Proc.new {|val| val.to_s }
-          when 'timestamp'  then Proc.new {|val| Time.at(val).localtime(timezone) }
+          when 'timestamp'  then Proc.new {|val| Time.at(val).localtime(zone_offset) }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for long column"
           end
         end
@@ -66,7 +70,7 @@ module Embulk
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val }
           when 'string'    then Proc.new {|val| val.to_s }
-          when 'timestamp' then Proc.new {|val| Time.at(val).localtime(timezone) }
+          when 'timestamp' then Proc.new {|val| Time.at(val).localtime(zone_offset) }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for double column"
           end
         end
@@ -77,7 +81,7 @@ module Embulk
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val.to_f }
           when 'string'    then Proc.new {|val| val }
-          when 'timestamp' then Proc.new {|val| Time.strptime(val, timestamp_format) } # ToDo: timezone
+          when 'timestamp' then Proc.new {|val| strptime_with_zone(val, timestamp_format, zone_offset) }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for string column"
           end
         end
@@ -87,9 +91,34 @@ module Embulk
           when 'boolean'   then Proc.new {|val| !!val }
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val.to_f }
-          when 'string'    then Proc.new {|val| val.localtime(timezone).strftime(timestamp_format) }
-          when 'timestamp' then Proc.new {|val| val.localtime(timezone) }
+          when 'string'    then Proc.new {|val| val.localtime(zone_offset).strftime(timestamp_format) }
+          when 'timestamp' then Proc.new {|val| val.localtime(zone_offset) }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for timesatmp column"
+          end
+        end
+
+        private
+        
+        # [+-]HH:MM, [+-]HHMM, [+-]HH
+        NUMERIC_PATTERN = %r{\A[+-]\d\d(:?\d\d)?\z}
+
+        # Region/Zone, Region/Zone/Zone
+        NAME_PATTERN = %r{\A[^/]+/[^/]+(/[^/]+)?\z}
+
+        def strptime_with_zone(date, timestamp_format, zone_offset)
+          time = Time.strptime(date, timestamp_format)
+          utc_offset = time.utc_offset
+          time.localtime(zone_offset) + utc_offset - zone_offset
+        end
+
+        def get_zone_offset(timezone)
+          if NUMERIC_PATTERN === timezone
+            Time.zone_offset(timezone)
+          elsif NAME_PATTERN === timezone
+            tz = TZInfo::Timezone.get(timezone)
+            tz.period_for_utc(Time.now).utc_total_offset
+          else
+            raise ArgumentError, "timezone format is invalid: #{timezone}"
           end
         end
       end

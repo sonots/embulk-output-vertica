@@ -34,7 +34,7 @@
     - string:    `boolean` (true), `long` (to\_i), `double` (to\_f), `string`, `timestamp` (Time.strptime)
     - timestamp: `boolean` (true), `long` (to\_i), `double` (to\_f), `string` (strftime), `timestamp`
   - **timestamp_format**: If input column type (embulk type) is string and value_type is timestamp or date, this plugin needs the timestamp format of the string. Also, if input column type (embulk type) is timestamp and value_type is string, this plugin needs the timestamp format of the string. 
-  - **timezone**: With format of "+HH:MM" "-HH:MM". `timestamp` column uses this (string, default is "+00:00").
+  - **timezone**: Specify timezone to convert into `timestamp` or from `timestamp` (string, default is "UTC").
 
 ### Modes
 
@@ -63,10 +63,6 @@ out:
     name: {type: VARCHAR(255)}
     date: {type: DATE, value_type: Date, timezone: "+09:00"}
 ```
-
-## ToDo
-
-* Use timezone for string => timezone conversion
 
 ## Development
 

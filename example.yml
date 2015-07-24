@@ -16,7 +16,8 @@ in:
     skip_header_lines: 1
     comment_line_marker: '#'
     columns:
-      - {name: date,  type: timestamp, format: "%Y-%m-%d"}
+      - {name: timestamp_date, type: timestamp, format: "%Y-%m-%d", timezone: "+09:00"}
+      - {name: string_date,    type: string}
       - {name: foo,   type: string}
       - {name: bar,   type: string}
       - {name: id,    type: long}
@@ -35,6 +36,8 @@ out:
   abort_on_error: true
   reject_on_materialized_type_error: true
   column_options:
-    date: {type: DATE}
-    id: {type: INT}
-    name: {type: VARCHAR}
+    id:              {type: INT}
+    name:            {type: VARCHAR}
+    timestamp_date:  {type: DATE, timezone: "+09:00"}
+    string_date:     {type: DATE, value_type: timestamp, timestamp_format: "%Y-%m-%d", timezone: "Asia/Tokyo"}
+    score:           {type: INT, value_type: long}
