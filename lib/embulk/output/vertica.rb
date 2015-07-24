@@ -11,18 +11,19 @@ module Embulk
 
       def self.transaction(config, schema, processor_count, &control)
         task = {
-          'host'           => config.param('host',           :string,  :default => 'localhost'),
-          'port'           => config.param('port',           :integer, :default => 5433),
-          'username'       => config.param('username',       :string),
-          'password'       => config.param('password',       :string,  :default => ''),
-          'database'       => config.param('database',       :string,  :default => 'vdb'),
-          'schema'         => config.param('schema',         :string,  :default => 'public'),
-          'table'          => config.param('table',          :string),
-          'mode'           => config.param('mode',           :string,  :default => 'insert'),
-          'copy_mode'      => config.param('copy_mode',      :string,  :default => 'AUTO'),
-          'abort_on_error' => config.param('abort_on_error', :bool,    :default => false),
+          'host'             => config.param('host',           :string,  :default => 'localhost'),
+          'port'             => config.param('port',           :integer, :default => 5433),
+          'username'         => config.param('username',       :string),
+          'password'         => config.param('password',       :string,  :default => ''),
+          'database'         => config.param('database',       :string,  :default => 'vdb'),
+          'schema'           => config.param('schema',         :string,  :default => 'public'),
+          'table'            => config.param('table',          :string),
+          'mode'             => config.param('mode',           :string,  :default => 'insert'),
+          'copy_mode'        => config.param('copy_mode',      :string,  :default => 'AUTO'),
+          'abort_on_error'   => config.param('abort_on_error', :bool,    :default => false),
+          'default_timezone' => config.param('default_timezone', :string, :default => 'UTC'),
+          'column_options'   => config.param('column_options', :hash,    :default => {}),
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
-          'column_options' => config.param('column_options', :hash,    :default => {}),
         }
 
         unless %w[INSERT REPLACE].include?(task['mode'].upcase!)
@@ -69,7 +70,7 @@ module Embulk
 
       def initialize(task, schema, index)
         super
-        @converters = ValueConverterFactory.create_converters(schema, task['column_options'])
+        @converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
         Embulk.logger.debug { @converters.to_s }
         @jv = self.class.connect(task)
       end
@@ -84,6 +85,7 @@ module Embulk
           copy(@jv, copy_sql) do |stdin|
             page.each do |record|
               json = to_json(record)
+              Embulk.logger.debug { "embulk-output-vertica: #{json}" }
               stdin << json << "\n"
             end
           end

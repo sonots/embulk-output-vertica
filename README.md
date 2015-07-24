@@ -20,6 +20,7 @@
 - **copy_mode**: specifies how data is loaded into the database. (`AUTO`, `DIRECT`, or `TRICKLE`. default: AUTO) See vertica documents for details.
 - **abort_on_error**: Stops the COPY command if a row is rejected and rolls back the command. No data is loaded. (bool, default: false)
 - **reject_on_materialized_type_error**: Use `reject_on_materialized_type_error` option for fjsonparser(). This rejects rows if any of olumn types and value types do not fit. ex) double value into INT column fails. See vertica documents for details. (bool, default: false)
+- **default_timezone**: the default timezone for column_options (string, default is "UTC")
 - **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
   - **type**: type of a column when this plugin creates new tables such as `VARCHAR(255)`, `INTEGER NOT NULL UNIQUE`. This is used on creating intermediate tables (insert and truncate_insert modes) and on creating a new target table. (string, default: depends on input column type, see below)
     - boolean:   `BOOLEAN`
@@ -34,7 +35,7 @@
     - string:    `boolean` (true), `long` (to\_i), `double` (to\_f), `string`, `timestamp` (Time.strptime)
     - timestamp: `boolean` (true), `long` (to\_i), `double` (to\_f), `string` (strftime), `timestamp`
   - **timestamp_format**: timestamp format to convert into/from `timestamp` (string, default is "%Y-%m-%d %H:%M:%S %z")
-  - **timezone**: timezone to convert into/from `timestamp` (string, default is "UTC").
+  - **timezone**: timezone to convert into/from `timestamp` (string, default is `default_timezone`).
 
 ### Modes
 

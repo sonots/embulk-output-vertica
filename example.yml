@@ -35,9 +35,10 @@ out:
   copy_mode: direct
   abort_on_error: true
   reject_on_materialized_type_error: true
+  default_timezone: 'Asia/Tokyo'
   column_options:
-    timestamp_date:  {type: DATE, timezone: "+09:00"}
-    string_date:     {type: DATE, value_type: timestamp, timestamp_format: "%Y-%m-%d", timezone: "Asia/Tokyo"}
+    timestamp_date:  {type: DATE}
+    string_date:     {type: TIMESTAMPTZ, value_type: timestamp, timestamp_format: "%Y-%m-%d", timezone: '+08:00'}
     id:              {type: INT}
     name:            {type: VARCHAR}
     score:           {type: INT, value_type: long}

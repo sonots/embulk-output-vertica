@@ -8,17 +8,16 @@ module Embulk
         attr_reader :schema_type, :value_type, :timestamp_format, :timezone, :zone_offset
 
         DEFAULT_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %z"
-        DEFAULT_TIMEZONE         = "+00:00"
 
-        def self.create_converters(schema, column_options)
+        def self.create_converters(schema, default_timezone, column_options)
           # @param [Schema] schema embulk defined column types
           # @param [Hash]   column_options user defined column types
           # @return [Array] value converters (array of Proc)
           Hash[*(schema.names.zip(schema.types).map do |column_name, schema_type|
             if column_options[column_name]
               value_type       = column_options[column_name]['value_type']
-              timestamp_format = column_options[column_name]['timestamp_format']
-              timezone         = column_options[column_name]['timezone']
+              timestamp_format = column_options[column_name]['timestamp_format'] || DEFAULT_TIMESTAMP_FORMAT
+              timezone         = column_options[column_name]['timezone'] || default_timezone
               [column_name, self.new(schema_type, value_type, timestamp_format, timezone).create_converter]
             else
               [column_name, Proc.new {|val| val }]
@@ -29,8 +28,8 @@ module Embulk
         def initialize(schema_type, value_type = nil, timestamp_format = nil, timezone = nil)
           @schema_type = schema_type
           @value_type = value_type || schema_type.to_s
-          @timestamp_format = timestamp_format || DEFAULT_TIMESTAMP_FORMAT
-          @timezone = timezone || DEFAULT_TIMEZONE
+          @timestamp_format = timestamp_format
+          @timezone = timezone
           @zone_offset = get_zone_offset(@timezone)
         end
 
