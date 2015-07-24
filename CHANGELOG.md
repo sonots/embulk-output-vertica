@@ -1,3 +1,9 @@
+# 0.1.9 (2015/07/24)
+
+Enhancements:
+
+* Support timezone for string converter
+
 # 0.1.8 (2015/07/24)
 
 Enhancements:
