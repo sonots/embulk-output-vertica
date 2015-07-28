@@ -26,11 +26,11 @@ module Embulk
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
         }
 
-        unless %w[INSERT REPLACE].include?(task['mode'].upcase!)
+        unless %w[INSERT REPLACE].include?(task['mode'].upcase)
           raise ConfigError, "`mode` must be one of INSERT, REPLACE"
         end
 
-        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase!)
+        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase)
           raise ConfigError, "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
         end
 
