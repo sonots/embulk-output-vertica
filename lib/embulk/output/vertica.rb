@@ -73,6 +73,7 @@ module Embulk
         @converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
         Embulk.logger.debug { @converters.to_s }
         @jv = self.class.connect(task)
+        @num_rows = 0
       end
 
       def close
@@ -87,10 +88,11 @@ module Embulk
               json = to_json(record)
               Embulk.logger.debug { "embulk-output-vertica: #{json}" }
               stdin << json << "\n"
+              @num_rows += 1
             end
           end
-          Embulk.logger.info "embulk-output-vertica: COMMIT!"
           @jv.commit
+          Embulk.logger.info "embulk-output-vertica: COMMIT! #{@num_rows}rows"
         rescue java.sql.SQLDataException => e
           @jv.rollback
           if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
