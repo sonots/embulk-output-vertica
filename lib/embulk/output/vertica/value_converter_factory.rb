@@ -9,11 +9,12 @@ module Embulk
 
         DEFAULT_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S %z"
 
+        # @param [Schema] schema embulk defined column types
+        # @param [String] default_timezone
+        # @param [Hash]   column_options user defined column types
+        # @return [Hash] hash whose key is column_name, and value is its converter (Proc)
         def self.create_converters(schema, default_timezone, column_options)
-          # @param [Schema] schema embulk defined column types
-          # @param [Hash]   column_options user defined column types
-          # @return [Array] value converters (array of Proc)
-          Hash[*(schema.names.zip(schema.types).map do |column_name, schema_type|
+          Hash[schema.names.zip(schema.types).map do |column_name, schema_type|
             if column_options[column_name]
               value_type       = column_options[column_name]['value_type']
               timestamp_format = column_options[column_name]['timestamp_format'] || DEFAULT_TIMESTAMP_FORMAT
@@ -22,7 +23,7 @@ module Embulk
             else
               [column_name, Proc.new {|val| val }]
             end
-          end.flatten!(1))]
+          end]
         end
 
         def initialize(schema_type, value_type = nil, timestamp_format = nil, timezone = nil)
