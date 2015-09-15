@@ -96,6 +96,12 @@ module Embulk
           end
         rescue java.sql.SQLDataException => e
           @jv.rollback
+          if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
+          else
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+          end
+          raise e # die transaction
         end
       end
 
@@ -106,18 +112,8 @@ module Embulk
       end
 
       def commit
-        begin
-          @jv.commit
-          Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_rows}rows" }
-        rescue java.sql.SQLDataException => e
-          @jv.rollback
-          if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
-            Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
-          else
-            Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
-          end
-          raise e
-        end
+        @jv.commit
+        Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_rows}rows" }
         commit_report = {
           "num_rows" => @num_rows,
         }
