@@ -53,7 +53,9 @@ module Embulk
         end
 
         begin
-          yield(task)
+          # obtain an array of commit_reports where one report is of a task
+          commit_reports = yield(task)
+          Embulk.logger.info { "embulk-output-vertica: commit_reports: #{commit_reports}" }
           connect(task) do |jv|
             query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema})])
             query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
@@ -65,7 +67,8 @@ module Embulk
             Embulk.logger.debug { "embulk-output-vertica: #{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
           end
         end
-        return {}
+        next_config_diff = {}
+        return next_config_diff
       end
 
       def initialize(task, schema, index)
@@ -91,16 +94,8 @@ module Embulk
               @num_rows += 1
             end
           end
-          @jv.commit
-          Embulk.logger.info "embulk-output-vertica: COMMIT! #{@num_rows}rows"
         rescue java.sql.SQLDataException => e
           @jv.rollback
-          if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
-            Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
-          else
-            Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
-          end
-          raise e
         end
       end
 
@@ -111,7 +106,21 @@ module Embulk
       end
 
       def commit
-        {}
+        begin
+          @jv.commit
+          Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_rows}rows" }
+        rescue java.sql.SQLDataException => e
+          @jv.rollback
+          if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
+          else
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+          end
+          raise e
+        end
+        commit_report = {
+          "num_rows" => @num_rows,
+        }
       end
 
       private
@@ -171,7 +180,7 @@ module Embulk
 
       def copy(conn, sql, &block)
         Embulk.logger.info "embulk-output-vertica: #{sql}"
-        conn.copy(sql, &block)
+        results, rejects = conn.copy(sql, &block)
       end
 
       def copy_sql
