@@ -76,7 +76,9 @@ module Embulk
         @converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
         Embulk.logger.debug { @converters.to_s }
         @jv = self.class.connect(task)
-        @num_rows = 0
+        @num_input_rows = 0
+        @num_output_rows = 0
+        @num_rejected_rows = 0
       end
 
       def close
@@ -86,14 +88,17 @@ module Embulk
       def add(page)
         json = nil # for log
         begin
-          copy(@jv, copy_sql) do |stdin|
+          num_output_rows, rejects = copy(@jv, copy_sql) do |stdin|
             page.each do |record|
               json = to_json(record)
               Embulk.logger.debug { "embulk-output-vertica: #{json}" }
               stdin << json << "\n"
-              @num_rows += 1
+              @num_input_rows += 1
             end
           end
+          num_rejected_rows = rejects.size
+          @num_output_rows += num_output_rows
+          @num_rejected_rows += num_rejected_rows
         rescue java.sql.SQLDataException => e
           @jv.rollback
           if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
@@ -113,9 +118,11 @@ module Embulk
 
       def commit
         @jv.commit
-        Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_rows}rows" }
+        Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_output_rows} rows" }
         commit_report = {
-          "num_rows" => @num_rows,
+          "num_input_rows" => @num_input_rows,
+          "num_output_rows" => @num_output_rows,
+          "num_rejected_rows" => @num_rejected_rows,
         }
       end
 
