@@ -53,9 +53,9 @@ module Embulk
         end
 
         begin
-          # obtain an array of commit_reports where one report is of a task
-          commit_reports = yield(task)
-          Embulk.logger.info { "embulk-output-vertica: commit_reports: #{commit_reports}" }
+          # obtain an array of task_reports where one report is of a task
+          task_reports = yield(task)
+          Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports}" }
           connect(task) do |jv|
             query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema})])
             query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
@@ -119,7 +119,7 @@ module Embulk
       def commit
         @jv.commit
         Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_output_rows} rows" }
-        commit_report = {
+        task_report = {
           "num_input_rows" => @num_input_rows,
           "num_output_rows" => @num_output_rows,
           "num_rejected_rows" => @num_rejected_rows,
