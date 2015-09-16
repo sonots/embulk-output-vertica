@@ -1,3 +1,13 @@
+# 0.2.3 (2015/09/16)
+
+Changes:
+
+* Commit all pages at burst (in each task)
+
+Enhancements:
+
+* Return task_reports
+
 # 0.2.2 (2015/07/24)
 
 Changes:
