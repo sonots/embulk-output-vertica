@@ -167,7 +167,7 @@ module Embulk
         when :boolean then 'BOOLEAN'
         when :long then 'INT' # BIGINT is a synonym for INT in vertica
         when :double then 'FLOAT' # DOUBLE PRECISION is a synonym for FLOAT in vertica
-        when :string then 'VARCHAR' # LONG VARCHAR is not recommended
+        when :string then 'VARCHAR' # LONG VARCHAR is not recommended. Default is VARCHAR(80)
         when :timestamp then 'TIMESTAMP'
         else raise NotSupportedType, "embulk-output-vertica cannot take column type #{type}"
         end
