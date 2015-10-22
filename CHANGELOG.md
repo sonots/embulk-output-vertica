@@ -1,3 +1,10 @@
+# 0.2.4 (2015/10/23)
+
+Changes:
+
+* Rename `username` to `user` to be compatible with ruby vertica gem and jruby jvertica gem
+  * still, support `username` for backward compatibility
+
 # 0.2.3 (2015/09/16)
 
 Changes:
