@@ -13,7 +13,8 @@ module Embulk
         task = {
           'host'             => config.param('host',           :string,  :default => 'localhost'),
           'port'             => config.param('port',           :integer, :default => 5433),
-          'username'         => config.param('username',       :string),
+          'user'             => config.param('user',           :string,  :default => nil),
+          'username'         => config.param('username',       :string,  :default => nil), # alias to :user for backward compatibility
           'password'         => config.param('password',       :string,  :default => ''),
           'database'         => config.param('database',       :string,  :default => 'vdb'),
           'schema'           => config.param('schema',         :string,  :default => 'public'),
@@ -26,12 +27,17 @@ module Embulk
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
         }
 
+        task['user'] ||= task['username']
+        unless task['user']
+          raise ConfigError.new 'required field "user" is not set'
+        end
+
         unless %w[INSERT REPLACE].include?(task['mode'].upcase!)
-          raise ConfigError, "`mode` must be one of INSERT, REPLACE"
+          raise ConfigError.new "`mode` must be one of INSERT, REPLACE"
         end
 
         unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase!)
-          raise ConfigError, "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
+          raise ConfigError.new "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
         end
 
         now = Time.now
@@ -133,7 +139,7 @@ module Embulk
         jv = ::Jvertica.connect({
           host: task['host'],
           port: task['port'],
-          user: task['username'],
+          user: task['user'],
           password: task['password'],
           database: task['database'],
         })

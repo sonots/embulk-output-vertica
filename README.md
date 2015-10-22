@@ -11,7 +11,7 @@
 
 - **host**: hostname (string, default: localhost)
 - **port**: port number (integer, default: 5433)
-- **username**: username (string, required)
+- **user**: user name (string, required)
 - **password**: password (string, default: '')
 - **database**: database name (string, default: vdb)
 - **schema**:   schema name (string, default: public)
@@ -52,7 +52,7 @@
 out:
   type: vertica 
   host: 127.0.0.1
-  username: dbadmin
+  user: dbadmin
   password: xxxxxxx
   database: vdb
   schema: sandbox
