@@ -1,3 +1,9 @@
+# 0.2.5 (2015/10/26)
+
+Changes:
+
+* Output task_reports log as json
+
 # 0.2.4 (2015/10/23)
 
 Changes:
