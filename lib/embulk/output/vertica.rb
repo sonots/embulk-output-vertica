@@ -61,7 +61,7 @@ module Embulk
         begin
           # obtain an array of task_reports where one report is of a task
           task_reports = yield(task)
-          Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports}" }
+          Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports.to_json}" }
           connect(task) do |jv|
             query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema})])
             query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
