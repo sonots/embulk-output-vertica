@@ -46,31 +46,38 @@ module Embulk
         unique_name = "%08x%08x" % [now.tv_sec, now.tv_nsec]
         task['temp_table'] = "#{task['table']}_LOAD_TEMP_#{unique_name}"
 
-        sql_schema = self.to_sql_schema(schema, task['column_options'])
-
         quoted_schema     = ::Jvertica.quote_identifier(task['schema'])
         quoted_table      = ::Jvertica.quote_identifier(task['table'])
         quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
 
+        sql_schema ||= self.existing_sql_schema(task) unless task['mode'] == 'REPLACE'
+        sql_schema ||= self.to_sql_schema(schema, task['column_options'])
+        sql_schema_expression = sql_schema.map {|name, type| "#{::Jvertica.quote_identifier(name)} #{type}" }.join(',')
+
         connect(task) do |jv|
-          if task['mode'] == 'REPLACE'
-            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}])
-          end
+          # create a temp table
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema})])
+          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_expression})])
         end
 
         begin
-          # obtain an array of task_reports where one report is of a task
-          task_reports = yield(task)
+          # insert data into a temp table
+          task_reports = yield(task) # obtain an array of task_reports where one report is of a task
           Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports.to_json}" }
+
           connect(task) do |jv|
-            query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema})])
+            # create the target table if not exists or mode == replace
+            if task['mode'] == 'REPLACE'
+              query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}])
+            end
+            query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_expression})])
+            # insert select from the temp table
             query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
             jv.commit
           end
         ensure
           connect(task) do |jv|
+            # clean up the temp table
             query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
             Embulk.logger.debug { "embulk-output-vertica: #{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
           end
@@ -166,8 +173,8 @@ module Embulk
           else
             sql_type = to_sql_type(type)
           end
-          "#{::Jvertica.quote_identifier(column_name)} #{sql_type}"
-        end.join(',')
+          [column_name, sql_type]
+        end.to_h
       end
 
       def self.to_sql_type(type)
@@ -179,6 +186,22 @@ module Embulk
         when :timestamp then 'TIMESTAMP'
         else raise NotSupportedType, "embulk-output-vertica cannot take column type #{type}"
         end
+      end
+
+      # Get sql schema if table exists
+      def self.existing_sql_schema(task)
+        quoted_schema = Jvertica.quote(task['schema'])
+        quoted_table  = Jvertica.quote(task['table'])
+        sql = "SELECT column_name, data_type FROM v_catalog.columns " \
+          "WHERE table_schema = #{quoted_schema} AND table_name = #{quoted_table}"
+
+        sql_schema = {}
+        connect(task) do |jv|
+          result = query(jv, sql)
+          sql_schema = result.map {|row| [row[0], row[1]] }.to_h
+        end
+        Embulk.logger.info "embulk-output-vertica: existing_sql_schema: #{sql_schema}"
+        sql_schema.empty? ? nil : sql_schema
       end
 
       def self.query(conn, sql)
