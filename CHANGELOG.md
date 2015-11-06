@@ -1,3 +1,9 @@
+# 0.2.7 (2015/11/06)
+
+Enhancements:
+
+* Get sql schema information from existing table unless REPLACE mode
+
 # 0.2.6 (2015/11/06)
 
 Fixes:
