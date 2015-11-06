@@ -32,11 +32,13 @@ module Embulk
           raise ConfigError.new 'required field "user" is not set'
         end
 
-        unless %w[INSERT REPLACE].include?(task['mode'].upcase!)
+        task['mode'] = task['mode'].upcase
+        unless %w[INSERT REPLACE].include?(task['mode'])
           raise ConfigError.new "`mode` must be one of INSERT, REPLACE"
         end
 
-        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'].upcase!)
+        task['copy_mode'] = task['copy_mode'].upcase
+        unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'])
           raise ConfigError.new "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
         end
 

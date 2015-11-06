@@ -32,7 +32,7 @@ out:
   schema: sandbox
   table: embulk_test
   mode: replace
-  copy_mode: direct
+  copy_mode: DIRECT
   abort_on_error: true
   reject_on_materialized_type_error: true
   default_timezone: 'Asia/Tokyo'
