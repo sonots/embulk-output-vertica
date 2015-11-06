@@ -1,8 +1,12 @@
-# 0.2.7 (2015/11/06)
+# 0.2.8 (2015/11/06)
 
 Enhancements:
 
-* Get sql schema information from existing table unless REPLACE mode
+* Get sql schema from the existing target table to create internal temporary tables to avoid schema conflicts
+
+# 0.2.7 (2015/11/06)
+
+Skipped
 
 # 0.2.6 (2015/11/06)
 
