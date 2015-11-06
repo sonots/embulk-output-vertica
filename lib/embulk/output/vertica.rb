@@ -50,28 +50,29 @@ module Embulk
         quoted_table      = ::Jvertica.quote_identifier(task['table'])
         quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
 
-        sql_schema ||= self.existing_sql_schema(task) unless task['mode'] == 'REPLACE'
-        sql_schema ||= self.to_sql_schema(schema, task['column_options'])
-        sql_schema_expression = sql_schema.map {|name, type| "#{::Jvertica.quote_identifier(name)} #{type}" }.join(',')
+        sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
 
+        # create the target table
         connect(task) do |jv|
-          # create a temp table
+          query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'REPLACE'
+          query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
+        end
+
+        sql_schema_temp_table = self.sql_schema_from_table(task)
+
+        # create a temp table
+        connect(task) do |jv|
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_expression})])
+          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_temp_table})])
         end
 
         begin
-          # insert data into a temp table
+          # insert data into the temp table
           task_reports = yield(task) # obtain an array of task_reports where one report is of a task
           Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports.to_json}" }
 
+          # insert select from the temp table
           connect(task) do |jv|
-            # create the target table if not exists or mode == replace
-            if task['mode'] == 'REPLACE'
-              query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}])
-            end
-            query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_expression})])
-            # insert select from the temp table
             query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
             jv.commit
           end
@@ -166,18 +167,19 @@ module Embulk
       # @param [Schema] schema embulk defined column types
       # @param [Hash]   column_options user defined column types
       # @return [String] sql schema used to CREATE TABLE
-      def self.to_sql_schema(schema, column_options)
-        schema.names.zip(schema.types).map do |column_name, type|
+      def self.sql_schema_from_embulk_schema(schema, column_options)
+        sql_schema = schema.names.zip(schema.types).map do |column_name, type|
           if column_options[column_name] and column_options[column_name]['type']
             sql_type = column_options[column_name]['type']
           else
-            sql_type = to_sql_type(type)
+            sql_type = sql_type_from_embulk_type(type)
           end
           [column_name, sql_type]
-        end.to_h
+        end
+        sql_schema.map {|name, type| "#{::Jvertica.quote_identifier(name)} #{type}" }.join(',')
       end
 
-      def self.to_sql_type(type)
+      def self.sql_type_from_embulk_type(type)
         case type
         when :boolean then 'BOOLEAN'
         when :long then 'INT' # BIGINT is a synonym for INT in vertica
@@ -188,8 +190,7 @@ module Embulk
         end
       end
 
-      # Get sql schema if table exists
-      def self.existing_sql_schema(task)
+      def self.sql_schema_from_table(task)
         quoted_schema = Jvertica.quote(task['schema'])
         quoted_table  = Jvertica.quote(task['table'])
         sql = "SELECT column_name, data_type FROM v_catalog.columns " \
@@ -198,10 +199,9 @@ module Embulk
         sql_schema = {}
         connect(task) do |jv|
           result = query(jv, sql)
-          sql_schema = result.map {|row| [row[0], row[1]] }.to_h
+          sql_schema = result.map {|row| [row[0], row[1]] }
         end
-        Embulk.logger.info "embulk-output-vertica: existing_sql_schema: #{sql_schema}"
-        sql_schema.empty? ? nil : sql_schema
+        sql_schema.map {|name, type| "#{::Jvertica.quote_identifier(name)} #{type}" }.join(',')
       end
 
       def self.query(conn, sql)
