@@ -1,3 +1,9 @@
+# 0.2.6 (2015/11/06)
+
+Fixes:
+
+* Fix not to raise ConfigError for upcase mode, and copy_mode
+
 # 0.2.5 (2015/10/26)
 
 Changes:
