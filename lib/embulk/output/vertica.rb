@@ -214,7 +214,7 @@ module Embulk
       end
 
       def copy(conn, sql, &block)
-        Embulk.logger.info "embulk-output-vertica: #{sql}"
+        Embulk.logger.debug "embulk-output-vertica: #{sql}"
         results, rejects = conn.copy(sql, &block)
       end
 
