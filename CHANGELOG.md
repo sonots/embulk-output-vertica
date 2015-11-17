@@ -1,3 +1,9 @@
+# 0.2.9 (2015/11/17)
+
+Changes:
+
+* Change log level of COPY statement from info to debug
+
 # 0.2.8 (2015/11/06)
 
 Enhancements:
