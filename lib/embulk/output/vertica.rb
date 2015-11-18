@@ -135,7 +135,7 @@ module Embulk
 
       def commit
         @jv.commit
-        Embulk.logger.info { "embulk-output-vertica: COMMIT! #{@num_output_rows} rows" }
+        Embulk.logger.debug { "embulk-output-vertica: COMMIT! #{@num_output_rows} rows" }
         task_report = {
           "num_input_rows" => @num_input_rows,
           "num_output_rows" => @num_output_rows,
