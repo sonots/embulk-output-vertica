@@ -1,3 +1,9 @@
+# 0.3.0 (2015/11/17)
+
+Changes:
+
+* Change log level of COMMIT statement from info to debug
+
 # 0.2.9 (2015/11/17)
 
 Changes:
