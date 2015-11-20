@@ -21,7 +21,7 @@ module Embulk
               timezone         = column_options[column_name]['timezone'] || default_timezone
               [column_name, self.new(schema_type, value_type, timestamp_format, timezone).create_converter]
             else
-              [column_name, Proc.new {|val| val }]
+              [column_name, self.new(schema_type, nil, nil, default_timezone).create_converter]
             end
           end]
         end
@@ -29,9 +29,11 @@ module Embulk
         def initialize(schema_type, value_type = nil, timestamp_format = nil, timezone = nil)
           @schema_type = schema_type
           @value_type = value_type || schema_type.to_s
-          @timestamp_format = timestamp_format
-          @timezone = timezone
-          @zone_offset = get_zone_offset(@timezone)
+          if @schema_type == :timestamp || @value_type == 'timestamp'
+            @timestamp_format = timestamp_format
+            @timezone = timezone
+            @zone_offset = get_zone_offset(@timezone) if @timezone
+          end
         end
 
         def create_converter
