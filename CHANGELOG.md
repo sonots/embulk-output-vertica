@@ -1,3 +1,9 @@
+# 0.3.1 (2015/11/20)
+
+Fixes:
+
+* Fix timezone support for the case that column_options is not specified (use default_timezone)
+
 # 0.3.0 (2015/11/17)
 
 Changes:
