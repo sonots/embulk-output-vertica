@@ -108,7 +108,7 @@ module Embulk
           num_output_rows, rejects = copy(@jv, copy_sql) do |stdin|
             page.each do |record|
               json = to_json(record)
-              Embulk.logger.debug { "embulk-output-vertica: #{json}" }
+              Embulk.logger.debug { "embulk-output-vertica: to_json #{json}" }
               stdin << json << "\n"
               @num_input_rows += 1
             end
