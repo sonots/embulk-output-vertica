@@ -80,7 +80,7 @@ module Embulk
           connect(task) do |jv|
             # clean up the temp table
             query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-            Embulk.logger.debug { "embulk-output-vertica: #{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
+            Embulk.logger.debug { "embulk-output-vertica: select result #{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
           end
         end
         # this is for -o next_config option, add some paramters for next time execution if wants
