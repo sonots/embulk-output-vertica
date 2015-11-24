@@ -1,4 +1,5 @@
 require 'jvertica'
+require 'connection_pool'
 require_relative 'vertica/value_converter_factory'
 
 module Embulk
@@ -9,23 +10,42 @@ module Embulk
       class Error < StandardError; end
       class NotSupportedType < Error; end
 
+      def self.connection_pool
+        @connection_pool ||= @connection_pool_proc.call
+      end
+
       def self.transaction(config, schema, processor_count, &control)
         task = {
-          'host'             => config.param('host',           :string,  :default => 'localhost'),
-          'port'             => config.param('port',           :integer, :default => 5433),
-          'user'             => config.param('user',           :string,  :default => nil),
-          'username'         => config.param('username',       :string,  :default => nil), # alias to :user for backward compatibility
-          'password'         => config.param('password',       :string,  :default => ''),
-          'database'         => config.param('database',       :string,  :default => 'vdb'),
-          'schema'           => config.param('schema',         :string,  :default => 'public'),
-          'table'            => config.param('table',          :string),
-          'mode'             => config.param('mode',           :string,  :default => 'insert'),
-          'copy_mode'        => config.param('copy_mode',      :string,  :default => 'AUTO'),
-          'abort_on_error'   => config.param('abort_on_error', :bool,    :default => false),
-          'default_timezone' => config.param('default_timezone', :string, :default => 'UTC'),
-          'column_options'   => config.param('column_options', :hash,    :default => {}),
+          'host'             => config.param('host',             :string,  :default => 'localhost'),
+          'port'             => config.param('port',             :integer, :default => 5433),
+          'user'             => config.param('user',             :string,  :default => nil),
+          'username'         => config.param('username',         :string,  :default => nil), # alias to :user for backward compatibility
+          'password'         => config.param('password',         :string,  :default => ''),
+          'database'         => config.param('database',         :string,  :default => 'vdb'),
+          'schema'           => config.param('schema',           :string,  :default => 'public'),
+          'table'            => config.param('table',            :string),
+          'mode'             => config.param('mode',             :string,  :default => 'insert'),
+          'copy_mode'        => config.param('copy_mode',        :string,  :default => 'AUTO'),
+          'abort_on_error'   => config.param('abort_on_error',   :bool,    :default => false),
+          'default_timezone' => config.param('default_timezone', :string,  :default => 'UTC'),
+          'column_options'   => config.param('column_options',   :hash,    :default => {}),
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
+          'pool'             => config.param('pool',             :integer, :default => processor_count),
+          'pool_timeout'     => config.param('pool_timeout',     :integer, :default => 600),
         }
+        task['user'] ||= task['username']
+
+        @connection_pool_proc = Proc.new do
+          ConnectionPool.new(size: task['pool'], timeout: task['pool_timeout']) do
+            ::Jvertica.connect({
+              host: task['host'],
+              port: task['port'],
+              user: task['user'],
+              password: task['password'],
+              database: task['database'],
+            })
+          end
+        end
 
         task['user'] ||= task['username']
         unless task['user']
@@ -53,7 +73,7 @@ module Embulk
         sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
 
         # create the target table
-        connect(task) do |jv|
+        connection_pool.with do |jv|
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'REPLACE'
           query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
         end
@@ -61,7 +81,7 @@ module Embulk
         sql_schema_temp_table = self.sql_schema_from_table(task)
 
         # create a temp table
-        connect(task) do |jv|
+        connection_pool.with do |jv|
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
           query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_temp_table})])
         end
@@ -69,18 +89,29 @@ module Embulk
         begin
           # insert data into the temp table
           task_reports = yield(task) # obtain an array of task_reports where one report is of a task
+          connection_pool.shutdown do |jv| # just don't know how to loop all connections
+            jv.commit
+            Embulk.logger.info { "embulk-output-vertica: COMMIT!" }
+            jv.close rescue nil
+          end
+          @connection_pool = nil
           Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports.to_json}" }
 
           # insert select from the temp table
-          connect(task) do |jv|
+          connection_pool.with do |jv|
             query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
             jv.commit
           end
         ensure
-          connect(task) do |jv|
+          connection_pool.with do |jv|
             # clean up the temp table
+            Embulk.logger.debug { "embulk-output-vertica: select count #{query(jv, %[SELECT count(*) FROM #{quoted_schema}.#{quoted_temp_table}]).map {|row| row.to_h }.join("\n") rescue nil}" }
+            Embulk.logger.trace { "embulk-output-vertica: select limit 10\n#{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_temp_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
             query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-            Embulk.logger.debug { "embulk-output-vertica: select result\n#{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
+          end
+
+          connection_pool.shutdown do |jv|
+            jv.close rescue nil
           end
         end
         # this is for -o next_config option, add some paramters for next time execution if wants
@@ -92,38 +123,43 @@ module Embulk
         super
         @converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
         Embulk.logger.trace { @converters.to_s }
-        @jv = self.class.connect(task)
         @num_input_rows = 0
         @num_output_rows = 0
         @num_rejected_rows = 0
       end
 
+      def connection_pool
+        self.class.connection_pool
+      end
+
       def close
-        @jv.close
+        # do not close connection_pool on each thread / page
       end
 
       def add(page)
-        json = nil # for log
-        begin
-          num_output_rows, rejects = copy(@jv, copy_sql) do |stdin|
-            page.each do |record|
-              json = to_json(record)
-              Embulk.logger.debug { "embulk-output-vertica: to_json #{json}" }
-              stdin << json << "\n"
-              @num_input_rows += 1
+        connection_pool.with do |jv| # block if no available connection left
+          json = nil # for log
+          begin
+            num_output_rows, rejects = copy(jv, copy_sql) do |stdin|
+              page.each do |record|
+                json = to_json(record)
+                Embulk.logger.debug { "embulk-output-vertica: to_json #{json}" }
+                stdin << json << "\n"
+                @num_input_rows += 1
+              end
             end
+            num_rejected_rows = rejects.size
+            @num_output_rows += num_output_rows
+            @num_rejected_rows += num_rejected_rows
+          rescue java.sql.SQLDataException => e
+            jv.rollback
+            if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
+              Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
+            else
+              Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+            end
+            raise e # die transaction
           end
-          num_rejected_rows = rejects.size
-          @num_output_rows += num_output_rows
-          @num_rejected_rows += num_rejected_rows
-        rescue java.sql.SQLDataException => e
-          @jv.rollback
-          if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
-            Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
-          else
-            Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
-          end
-          raise e # die transaction
         end
       end
 
@@ -133,9 +169,10 @@ module Embulk
       def abort
       end
 
+      # this is called after processing all pages in a thread
+      # we do commit on #transaction for all connection pools, not at here
       def commit
-        @jv.commit
-        Embulk.logger.debug { "embulk-output-vertica: COMMIT! #{@num_output_rows} rows" }
+        Embulk.logger.debug { "embulk-output-vertica: #{@num_output_rows} rows" }
         task_report = {
           "num_input_rows" => @num_input_rows,
           "num_output_rows" => @num_output_rows,
@@ -144,25 +181,6 @@ module Embulk
       end
 
       private
-
-      def self.connect(task)
-        jv = ::Jvertica.connect({
-          host: task['host'],
-          port: task['port'],
-          user: task['user'],
-          password: task['password'],
-          database: task['database'],
-        })
-
-        if block_given?
-          begin
-            yield jv
-          ensure
-            jv.close
-          end
-        end
-        jv
-      end
 
       # @param [Schema] schema embulk defined column types
       # @param [Hash]   column_options user defined column types
@@ -197,7 +215,7 @@ module Embulk
           "WHERE table_schema = #{quoted_schema} AND table_name = #{quoted_table}"
 
         sql_schema = {}
-        connect(task) do |jv|
+        connection_pool.with do |jv|
           result = query(jv, sql)
           sql_schema = result.map {|row| [row[0], row[1]] }
         end
