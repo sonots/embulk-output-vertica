@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "embulk-output-vertica"
-  spec.version       = "0.3.1"
+  spec.version       = "0.4.0"
   spec.authors       = ["eiji.sekiya", "Naotoshi Seo"]
   spec.email         = ["eiji.sekiya.0326@gmail.com", "sonots@gmail.com"]
   spec.summary       = "Vertica output plugin for Embulk"

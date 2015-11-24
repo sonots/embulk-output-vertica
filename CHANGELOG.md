@@ -1,3 +1,9 @@
+# 0.4.0 (2015/11/24)
+
+Enhancements:
+
+* Support connection pool
+
 # 0.3.1 (2015/11/20)
 
 Fixes:
