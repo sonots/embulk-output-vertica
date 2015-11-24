@@ -30,7 +30,7 @@ module Embulk
           'default_timezone' => config.param('default_timezone', :string,  :default => 'UTC'),
           'column_options'   => config.param('column_options',   :hash,    :default => {}),
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
-          'pool'             => config.param('pool',             :integer, :default => 1),
+          'pool'             => config.param('pool',             :integer, :default => processor_count),
           'pool_timeout'     => config.param('pool_timeout',     :integer, :default => 600),
         }
         task['user'] ||= task['username']

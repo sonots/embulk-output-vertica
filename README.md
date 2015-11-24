@@ -18,7 +18,7 @@
 - **table**:    table name (string, required)
 - **mode**:     "insert", or "replace". See bellow. (string, default: insert)
 - **copy_mode**: specifies how data is loaded into the database. See vertica documents for details. (`AUTO`, `DIRECT`, or `TRICKLE`. default: `AUTO`)
-- **pool**: number of connection pools, this number controls number of concurrency to issue COPY statements (integer, default: 1)
+- **pool**: number of connection pools, this number controls number of concurrency to issue COPY statements (integer, default: processor_count, that is, number of threads in input plugin)
 - **pool_timeout**: timeout to checkout a connection from connection pools (seconds, default: 600)
 - **abort_on_error**: stops the COPY command if a row is rejected and rolls back the command. No data is loaded. (bool, default: false)
 - **reject_on_materialized_type_error**: uses `reject_on_materialized_type_error` option for fjsonparser(). This rejects rows if any of column types and value types do not fit, ex) double value into INT column fails. See vertica documents for details. (bool, default: false)
