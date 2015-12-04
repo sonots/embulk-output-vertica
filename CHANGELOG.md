@@ -1,3 +1,9 @@
+# 0.4.1 (2015/12/04)
+
+Fixes:
+
+* Create internal vertica projection beforehand to avoid S Lock error 
+
 # 0.4.0 (2015/11/24)
 
 Enhancements:
