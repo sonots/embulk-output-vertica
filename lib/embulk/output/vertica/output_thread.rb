@@ -10,11 +10,14 @@ module Embulk
         end
 
         def enqueue(page)
-          @output_threads[@current_index].enqueue(page)
-          @current_index = (@current_index + 1) % @size
+          @mutex.synchronize do
+            @output_threads[@current_index].enqueue(page)
+            @current_index = (@current_index + 1) % @size
+          end
         end
 
         def start
+          @mutex = Mutex.new
           @size.times.map {|i| @output_threads[i].start }
         end
 
