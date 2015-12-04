@@ -84,6 +84,14 @@ module Embulk
         connection_pool.with do |jv|
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
           query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_temp_table})])
+          # Create internal vertica projection beforehand, otherwirse, parallel copies lock table to create a projection and we get S Lock error sometimes
+          # This is a trick to create internal vertica projection
+          query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_temp_table} SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 0])
+          Embulk.logger.trace {
+            result = query(jv, %[SELECT EXPORT_OBJECTS('', '#{task['schema']}.#{task['temp_table']}')])
+            # You can see `CREATE PROJECTION` if the table has a projection
+            "embulk-output-vertica: #{result.to_a.flatten}"
+          }
         end
 
         begin
@@ -119,6 +127,7 @@ module Embulk
         return next_config_diff
       end
 
+      # instance is created on each thread
       def initialize(task, schema, index)
         super
         @converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
