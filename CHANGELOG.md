@@ -1,3 +1,9 @@
+# 0.5.0 (2015/12/04)
+
+Changes:
+
+* Use thread pool instead of connection pool #13
+
 # 0.4.1 (2015/12/04)
 
 Fixes:
