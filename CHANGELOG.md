@@ -1,3 +1,9 @@
+# 0.5.1 (2015/12/04)
+
+Fixes:
+
+* Need mutex.synchroize for OutputThreadPool#enqueue because it is called by #add which is ran by multiple threads
+
 # 0.5.0 (2015/12/04)
 
 Changes:
