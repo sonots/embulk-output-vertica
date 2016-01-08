@@ -1,3 +1,10 @@
+# 0.5.2 (2016/01/09)
+
+Fixes:
+
+* Add nil check for timestamp converter
+* Fix error handling of output thread
+
 # 0.5.1 (2015/12/04)
 
 Fixes:
