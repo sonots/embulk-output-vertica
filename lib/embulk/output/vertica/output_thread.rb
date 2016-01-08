@@ -35,15 +35,17 @@ module Embulk
           @num_input_rows = 0
           @num_output_rows = 0
           @num_rejected_rows = 0
+          @outer_thread = Thread.current
+          @thread_active = false
         end
 
         def enqueue(page)
-          if @thread.status.nil? # thread died by an error
-            @thread.join # raise the same error raised inside thread
-          end
-          if @thread.alive?
+          if @thread_active and @thread.alive?
             Embulk.logger.trace { "embulk-output-vertica: enqueued" }
             @queue.push(page)
+          else
+            Embulk.logger.info { "embulk-output-vertica: thread is dead, but still trying to enqueue" }
+            raise RuntimeError, "embulk-output-vertica: thread is died, but still trying to enqueue"
           end
         end
 
@@ -81,18 +83,34 @@ module Embulk
                 Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
               end
               raise e # die transaction
+            rescue => e
+              Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+              jv.rollback
+              raise e
             end
           end
+        rescue => e
+          @thread_active = false # not to be enqueued any more
+          while @queue.size > 0
+            @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
+          end
+          @outer_thread.raise e.class.new("#{e.message}\n  #{e.backtrace.join("\n  ")}")
         end
 
         def start
           @thread = Thread.new(&method(:run))
+          @thread_active = true
         end
 
         def commit
-          @queue.push('finish') if @thread.alive?
-          Thread.pass
-          @thread.join # the same error with run would be raised at here
+          @thread_active = false
+          if @thread.alive?
+            @queue.push('finish')
+            Thread.pass
+            @thread.join
+          else
+            raise RuntimeError, "embulk-output-vertica: thread died accidently"
+          end
 
           task_report = {
             'num_input_rows' => @num_input_rows,
