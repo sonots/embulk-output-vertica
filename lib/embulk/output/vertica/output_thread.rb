@@ -5,7 +5,7 @@ module Embulk
         def initialize(task, schema, size)
           @size = size
           converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
-          @output_threads = size.times.map { OutputThread.new(task, schema, converters) }
+          @output_threads = size.times.map {|i| OutputThread.new(task, schema, converters, i) }
           @current_index = 0
         end
 
@@ -27,11 +27,12 @@ module Embulk
       end
 
       class OutputThread
-        def initialize(task, schema, converters)
+        def initialize(task, schema, converters, idx)
           @task = task
           @schema = schema
           @queue = SizedQueue.new(1)
           @converters = converters
+          @idx = idx
           @num_input_rows = 0
           @num_output_rows = 0
           @num_rejected_rows = 0
@@ -127,7 +128,7 @@ module Embulk
         end
 
         def quoted_temp_table
-          ::Jvertica.quote_identifier(@task['temp_table'])
+          ::Jvertica.quote_identifier("#{@task['temp_table']}_#{@idx}")
         end
 
         def copy_mode

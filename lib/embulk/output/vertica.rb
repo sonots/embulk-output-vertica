@@ -58,7 +58,10 @@ module Embulk
 
         quoted_schema     = ::Jvertica.quote_identifier(task['schema'])
         quoted_table      = ::Jvertica.quote_identifier(task['table'])
-        quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
+        quoted_temp_tables = []
+        task['pool'].times do |i|
+          quoted_temp_tables[i] = ::Jvertica.quote_identifier("#{task['temp_table']}_#{i}")
+        end
 
         sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
 
@@ -72,11 +75,13 @@ module Embulk
 
         # create a temp table
         connect(task) do |jv|
-          query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_temp_table})])
-          # Create internal vertica projection beforehand, otherwirse, parallel copies lock table to create a projection and we get S Lock error sometimes
-          # This is a trick to create internal vertica projection
-          query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_temp_table} SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 0])
+          task['pool'].times do |i|
+            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_tables[i]}])
+            query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_tables[i]} (#{sql_schema_temp_table})])
+            # Create internal vertica projection beforehand, otherwirse, parallel copies lock table to create a projection and we get S Lock error sometimes
+            # This is a trick to create internal vertica projection
+            query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_temp_tables[i]} SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 0])
+          end
           Embulk.logger.trace {
             result = query(jv, %[SELECT EXPORT_OBJECTS('', '#{task['schema']}.#{task['temp_table']}')])
             # You can see `CREATE PROJECTION` if the table has a projection
@@ -93,13 +98,17 @@ module Embulk
 
           # insert select from the temp table
           connect(task) do |jv|
-            query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
+            task['pool'].times do |i|
+              query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_tables[i]}])
+            end
             jv.commit
           end
         ensure
           connect(task) do |jv|
             # clean up the temp table
-            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
+            task['pool'].times do |i|
+              query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_tables[i]}])
+            end
             Embulk.logger.debug { "embulk-output-vertica: select result\n#{query(jv, %[SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 10]).map {|row| row.to_h }.join("\n") rescue nil}" }
           end
         end
