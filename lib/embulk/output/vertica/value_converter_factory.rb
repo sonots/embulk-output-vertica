@@ -61,7 +61,7 @@ module Embulk
           when 'long'       then Proc.new {|val| val }
           when 'double'     then Proc.new {|val| val.to_f }
           when 'string'     then Proc.new {|val| val.to_s }
-          when 'timestamp'  then Proc.new {|val| Time.at(val).localtime(zone_offset) }
+          when 'timestamp'  then Proc.new {|val| val ? Time.at(val).localtime(zone_offset) : nil }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for long column"
           end
         end
@@ -72,7 +72,7 @@ module Embulk
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val }
           when 'string'    then Proc.new {|val| val.to_s }
-          when 'timestamp' then Proc.new {|val| Time.at(val).localtime(zone_offset) }
+          when 'timestamp' then Proc.new {|val| val ? Time.at(val).localtime(zone_offset) : nil }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for double column"
           end
         end
@@ -83,7 +83,7 @@ module Embulk
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val.to_f }
           when 'string'    then Proc.new {|val| val }
-          when 'timestamp' then Proc.new {|val| strptime_with_zone(val, timestamp_format, zone_offset) }
+          when 'timestamp' then Proc.new {|val| val ? strptime_with_zone(val, timestamp_format, zone_offset) : nil }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for string column"
           end
         end
@@ -93,8 +93,8 @@ module Embulk
           when 'boolean'   then Proc.new {|val| !!val }
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val.to_f }
-          when 'string'    then Proc.new {|val| val.localtime(zone_offset).strftime(timestamp_format) }
-          when 'timestamp' then Proc.new {|val| val.localtime(zone_offset) }
+          when 'string'    then Proc.new {|val| val ? val.localtime(zone_offset).strftime(timestamp_format) : nil }
+          when 'timestamp' then Proc.new {|val| val ? val.localtime(zone_offset) : nil }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for timesatmp column"
           end
         end
