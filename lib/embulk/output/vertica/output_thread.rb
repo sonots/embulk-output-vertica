@@ -41,7 +41,7 @@ module Embulk
 
         def enqueue(page)
           if @thread_active and @thread.alive?
-            Embulk.logger.trace { "embulk-output-vertica: enqueued" }
+            Embulk.logger.trace { "embulk-output-vertica: enqueue" }
             @queue.push(page)
           else
             Embulk.logger.info { "embulk-output-vertica: thread is dead, but still trying to enqueue" }
@@ -63,6 +63,7 @@ module Embulk
                   Embulk.logger.trace { "embulk-output-vertica: dequeued" }
 
                   page.each do |record|
+                    Embulk.logger.trace { "embulk-output-vertica: record #{record}" }
                     json = to_json(record)
                     Embulk.logger.trace { "embulk-output-vertica: to_json #{json}" }
                     stdin << json << "\n"
@@ -73,15 +74,16 @@ module Embulk
               num_rejected_rows = rejects.size
               @num_output_rows += num_output_rows
               @num_rejected_rows += num_rejected_rows
-              jv.commit
               Embulk.logger.info { "embulk-output-vertica: COMMIT!" }
+              jv.commit
+              Embulk.logger.debug { "embulk-output-vertica: COMMITTED!" }
             rescue java.sql.SQLDataException => e
-              jv.rollback
               if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
                 Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{json}"
               else
                 Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
               end
+              jv.rollback
               raise e # die transaction
             rescue => e
               Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
