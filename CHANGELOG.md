@@ -1,3 +1,9 @@
+# 0.5.3 (2016/01/09)
+
+Enhancements:
+
+* Add more trace logs
+
 # 0.5.2 (2016/01/09)
 
 Fixes:
