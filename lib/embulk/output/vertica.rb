@@ -27,6 +27,7 @@ module Embulk
           'mode'             => config.param('mode',             :string,  :default => 'insert'),
           'copy_mode'        => config.param('copy_mode',        :string,  :default => 'AUTO'),
           'abort_on_error'   => config.param('abort_on_error',   :bool,    :default => false),
+          'compress'         => config.param('compress',         :string,  :default => 'UNCOMPRESSED'),
           'default_timezone' => config.param('default_timezone', :string, :default => 'UTC'),
           'column_options'   => config.param('column_options',   :hash,    :default => {}),
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
@@ -50,6 +51,12 @@ module Embulk
         task['copy_mode'] = task['copy_mode'].upcase
         unless %w[AUTO DIRECT TRICKLE].include?(task['copy_mode'])
           raise ConfigError.new "`copy_mode` must be one of AUTO, DIRECT, TRICKLE"
+        end
+
+        # ToDo: Support BZIP, LZO
+        task['compress'] = task['compress'].upcase
+        unless %w[GZIP UNCOMPRESSED].include?(task['compress'])
+          raise ConfigError.new "`compress` must be one of GZIP, UNCOMPRESSED"
         end
 
         now = Time.now

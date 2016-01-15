@@ -1,3 +1,5 @@
+require 'zlib'
+
 module Embulk
   module Output
     class Vertica < OutputPlugin
@@ -37,6 +39,13 @@ module Embulk
           @num_rejected_rows = 0
           @outer_thread = Thread.current
           @thread_active = false
+
+          case task['compress']
+          when 'GZIP'
+            @write_proc = self.method(:write_gzip)
+          else
+            @write_proc = self.method(:write_uncompressed)
+          end
         end
 
         def enqueue(page)
@@ -46,6 +55,28 @@ module Embulk
           else
             Embulk.logger.info { "embulk-output-vertica: thread is dead, but still trying to enqueue" }
             raise RuntimeError, "embulk-output-vertica: thread is died, but still trying to enqueue"
+          end
+        end
+
+        def write_gzip(io, page)
+          buf = Zlib::Deflate.new
+          write_buf(buf, page)
+          io << buf.finish
+        end
+
+        def write_uncompressed(io, page)
+          buf = ''
+          write_buf(buf, page)
+          io << buf
+        end
+
+        def write_buf(buf, page)
+          page.each do |record|
+            Embulk.logger.trace { "embulk-output-vertica: record #{record}" }
+            json = to_json(record)
+            Embulk.logger.trace { "embulk-output-vertica: to_json #{json}" }
+            buf << json << "\n"
+            @num_input_rows += 1
           end
         end
 
@@ -62,13 +93,7 @@ module Embulk
                   end
                   Embulk.logger.trace { "embulk-output-vertica: dequeued" }
 
-                  page.each do |record|
-                    Embulk.logger.trace { "embulk-output-vertica: record #{record}" }
-                    json = to_json(record)
-                    Embulk.logger.trace { "embulk-output-vertica: to_json #{json}" }
-                    stdin << json << "\n"
-                    @num_input_rows += 1
-                  end
+                  @write_proc.call(stdin, page)
                 end
               end
               num_rejected_rows = rejects.size
@@ -129,7 +154,7 @@ module Embulk
         end
 
         def copy_sql
-          @copy_sql ||= "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN#{fjsonparser}#{copy_mode}#{abort_on_error} NO COMMIT"
+          @copy_sql ||= "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN#{compress}#{fjsonparser}#{copy_mode}#{abort_on_error} NO COMMIT"
         end
 
         def to_json(record)
@@ -148,6 +173,10 @@ module Embulk
 
         def quoted_temp_table
           ::Jvertica.quote_identifier(@task['temp_table'])
+        end
+
+        def compress
+          " #{@task['compress']}"
         end
 
         def copy_mode

@@ -20,6 +20,7 @@
 - **copy_mode**: specifies how data is loaded into the database. See vertica documents for details. (`AUTO`, `DIRECT`, or `TRICKLE`. default: `AUTO`)
 - **pool**: number of output threads, this number controls number of concurrency to issue COPY statements (integer, default: processor_count, that is, number of threads in input plugin)
 - **abort_on_error**: stops the COPY command if a row is rejected and rolls back the command. No data is loaded. (bool, default: false)
+- **compress**: compress input (`GZIP`, or `UNCOMPRESSED`, default: `UNCOMPRESSED`)
 - **reject_on_materialized_type_error**: uses `reject_on_materialized_type_error` option for fjsonparser(). This rejects rows if any of column types and value types do not fit, ex) double value into INT column fails. See vertica documents for details. (bool, default: false)
 - **default_timezone**: the default timezone for column_options (string, default is "UTC")
 - **column_options**: advanced: a key-value pairs where key is a column name and value is options for the column.
@@ -72,7 +73,7 @@ Run example:
 
 ```
 $ embulk bundle install --path vendor/bundle
-$ embulk -J-O -R--dev run -b . run -l debug example.yml
+$ embulk -J-O -R--dev run -b . -l debug example.yml
 ```
 
 Release gem:
