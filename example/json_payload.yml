@@ -1,0 +1,20 @@
+in:
+  type: file
+  path_prefix: example/example.jsonl
+  parser:
+    type: none
+out:
+  type: vertica 
+  host: 127.0.0.1
+  user: dbadmin
+  password: xxxxxxx
+  database: vdb
+  schema: sandbox
+  table: embulk_test
+  copy_mode: DIRECT
+  abort_on_error: true
+  reject_on_materialized_type_error: true
+  default_timezone: 'Asia/Tokyo'
+  pool: 3
+  compress: GZIP
+  json_payload: true
