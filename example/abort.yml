@@ -1,0 +1,33 @@
+in:
+  type: file
+  path_prefix: example/example.csv
+  parser:
+    type: csv
+    charset: UTF-8
+    newline: CRLF
+    null_string: 'NULL'
+    skip_header_lines: 1
+    comment_line_marker: '#'
+    columns:
+      - {name: timestamp_date, type: timestamp, format: "%Y-%m-%d", timezone: "+09:00"}
+      - {name: string_date,    type: string}
+      - {name: foo,   type: string}
+      - {name: bar,   type: string}
+      - {name: id,    type: long}
+      - {name: name,  type: string}
+      - {name: score, type: double} 
+out:
+  type: vertica 
+  host: 127.0.0.1
+  user: dbadmin
+  password: xxxxxxx
+  database: vdb
+  schema: sandbox
+  table: embulk_test
+  mode: replace
+  copy_mode: DIRECT
+  abort_on_error: true
+  reject_on_materialized_type_error: true
+  default_timezone: 'Asia/Tokyo'
+  column_options:
+    bar: {type: INT}
