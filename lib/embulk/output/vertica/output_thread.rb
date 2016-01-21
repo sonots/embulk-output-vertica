@@ -58,20 +58,21 @@ module Embulk
           end
         end
 
-        def write_gzip(io, page)
+        def write_gzip(io, page, &block)
           buf = Zlib::Deflate.new
-          write_buf(buf, page)
+          write_buf(buf, page, &block)
           io << buf.finish
         end
 
-        def write_uncompressed(io, page)
+        def write_uncompressed(io, page, &block)
           buf = ''
-          write_buf(buf, page)
+          write_buf(buf, page, &block)
           io << buf
         end
 
-        def write_buf(buf, page)
+        def write_buf(buf, page, &block)
           page.each do |record|
+            yield(record) if block_given?
             Embulk.logger.trace { "embulk-output-vertica: record #{record}" }
             json = to_json(record)
             Embulk.logger.trace { "embulk-output-vertica: to_json #{json}" }
@@ -85,17 +86,21 @@ module Embulk
           Vertica.connect(@task) do |jv|
             json = nil # for log
             begin
+              last_record = nil
               num_output_rows, rejects = copy(jv, copy_sql) do |stdin|
                 while page = @queue.pop
                   if page == 'finish'
-                    Embulk.logger.debug { "embulk-output-vertica: thread finished" }
+                    Embulk.logger.trace { "embulk-output-vertica: popped finish" }
                     break
                   end
                   Embulk.logger.trace { "embulk-output-vertica: dequeued" }
 
-                  @write_proc.call(stdin, page)
+                  @write_proc.call(stdin, page) do |record|
+                    last_record = record
+                  end
                 end
               end
+              Embulk.logger.debug { "embulk-output-vertica: thread finished" }
               num_rejected_rows = rejects.size
               @num_output_rows += num_output_rows
               @num_rejected_rows += num_rejected_rows
@@ -108,6 +113,7 @@ module Embulk
               else
                 Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
               end
+              Embulk.logger.info { "embulk-output-vertica: last_record: #{to_json(last_record)}" }
               jv.rollback
               raise e # die transaction
             rescue => e
@@ -133,6 +139,7 @@ module Embulk
           @thread_active = false
           if @thread.alive?
             @queue.push('finish')
+            Embulk.logger.trace { "embulk-output-vertica: pushed finish" }
             Thread.pass
             @thread.join
           else
