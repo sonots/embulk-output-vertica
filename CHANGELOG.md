@@ -1,3 +1,9 @@
+# 0.5.4 (2016/01/21)
+
+Enhancements:
+
+* Log rejected record
+
 # 0.5.3 (2016/01/09)
 
 Enhancements:
