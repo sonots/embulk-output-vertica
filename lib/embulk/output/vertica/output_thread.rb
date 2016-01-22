@@ -79,6 +79,7 @@ module Embulk
             buf << json << "\n"
             @num_input_rows += 1
           end
+          Embulk.logger.info { "embulk-output-vertica: num_input_rows #{@num_input_rows}" }
         end
 
         def run
