@@ -1,3 +1,9 @@
+# 0.5.5 (2016/01/22)
+
+Changes:
+
+* Show input_num_rows info log to see progress
+
 # 0.5.4 (2016/01/21)
 
 Enhancements:
