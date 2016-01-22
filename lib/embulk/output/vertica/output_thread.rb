@@ -39,6 +39,7 @@ module Embulk
           @num_rejected_rows = 0
           @outer_thread = Thread.current
           @thread_active = false
+          @progress_log_timer = Time.now
 
           case task['compress']
           when 'GZIP'
@@ -79,7 +80,11 @@ module Embulk
             buf << json << "\n"
             @num_input_rows += 1
           end
-          Embulk.logger.info { "embulk-output-vertica: num_input_rows #{@num_input_rows}" }
+          now = Time.now
+          if @progress_log_timer < now - 10 # once in 10 seconds
+            @progress_log_timer = now
+            Embulk.logger.info { "embulk-output-vertica: num_input_rows #{@num_input_rows}" }
+          end
         end
 
         def run
