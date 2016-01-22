@@ -1,3 +1,9 @@
+# 0.5.6 (2016/01/22)
+
+Enhancements:
+
+* Perform to_json in embulk threads. This achieves better performance when pool < num_threads
+
 # 0.5.5 (2016/01/22)
 
 Changes:
