@@ -1,3 +1,9 @@
+# 0.5.7 (2016/01/22)
+
+Enhancements:
+
+* Add json_payload option to avoid construction of JSON in this jruby plugin for performance improvement
+
 # 0.5.6 (2016/01/22)
 
 Enhancements:
