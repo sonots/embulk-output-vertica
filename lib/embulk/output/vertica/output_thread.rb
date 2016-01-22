@@ -5,6 +5,7 @@ module Embulk
     class Vertica < OutputPlugin
       class OutputThreadPool
         def initialize(task, schema, size)
+          @task = task
           @size = size
           @schema = schema
           @converters = ValueConverterFactory.create_converters(schema, task['default_timezone'], task['column_options'])
@@ -33,9 +34,13 @@ module Embulk
         end
 
         def to_json(record)
-          Hash[*(@schema.names.zip(record).map do |column_name, value|
-            [column_name, @converters[column_name].call(value)]
-          end.flatten!(1))].to_json
+          if @task['json_payload']
+            record.first
+          else
+            Hash[*(@schema.names.zip(record).map do |column_name, value|
+              [column_name, @converters[column_name].call(value)]
+            end.flatten!(1))].to_json
+          end
         end
       end
 

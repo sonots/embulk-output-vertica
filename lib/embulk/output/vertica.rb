@@ -30,6 +30,7 @@ module Embulk
           'compress'         => config.param('compress',         :string,  :default => 'UNCOMPRESSED'),
           'default_timezone' => config.param('default_timezone', :string, :default => 'UTC'),
           'column_options'   => config.param('column_options',   :hash,    :default => {}),
+          'json_payload'     => config.param('json_payload',     :bool,    :default => false),
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
           'pool'             => config.param('pool',             :integer, :default => processor_count),
         }
@@ -67,12 +68,14 @@ module Embulk
         quoted_table      = ::Jvertica.quote_identifier(task['table'])
         quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
 
-        sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
+        unless task['json_payload'] # ToDo: auto table creation is not supported to json_payload mode yet
+          sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
 
-        # create the target table
-        connect(task) do |jv|
-          query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'REPLACE'
-          query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
+          # create the target table
+          connect(task) do |jv|
+            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'REPLACE'
+            query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
+          end
         end
 
         sql_schema_temp_table = self.sql_schema_from_table(task)
