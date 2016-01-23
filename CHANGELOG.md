@@ -1,3 +1,9 @@
+# 0.5.8 (2016/01/24)
+
+Enhancements:
+
+* Add resource_pool option
+
 # 0.5.7 (2016/01/22)
 
 Enhancements:

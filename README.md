@@ -39,6 +39,7 @@
   - **timestamp_format**: timestamp format to convert into/from `timestamp` (string, default is "%Y-%m-%d %H:%M:%S %z")
   - **timezone**: timezone to convert into/from `timestamp` (string, default is `default_timezone`).
 - **json_payload**: Assuming first columns of records are json string, COPY each json into vertica directly using fjsonparser. This would improve performance by avoiding construction of json in this jruby plugin. ToDo: auto table creation is not supported for this mode yet (bool, default is false)
+- **resource_pool**: Configure resource pool (string, default is nil)
 
 ### Modes
 
