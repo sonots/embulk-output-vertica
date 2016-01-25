@@ -107,7 +107,7 @@ module Embulk
               num_output_rows, rejects = copy(jv, copy_sql) do |stdin|
                 while json_page = @queue.pop
                   if json_page == 'finish'
-                    Embulk.logger.trace { "embulk-output-vertica: popped finish" }
+                    Embulk.logger.debug { "embulk-output-vertica: popped finish" }
                     break
                   end
                   Embulk.logger.trace { "embulk-output-vertica: dequeued" }
@@ -155,8 +155,8 @@ module Embulk
         def commit
           @thread_active = false
           if @thread.alive?
+            Embulk.logger.debug { "embulk-output-vertica: push finish" }
             @queue.push('finish')
-            Embulk.logger.trace { "embulk-output-vertica: pushed finish" }
             Thread.pass
             @thread.join
           else
