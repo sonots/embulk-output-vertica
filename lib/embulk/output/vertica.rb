@@ -154,8 +154,8 @@ module Embulk
           database: task['database'],
         })
 
-        if task['resource_pool']
-          query(jv, "SET SESSION RESOURCE_POOL = '#{task['resource_pool']}'")
+        if resource_pool = task['resource_pool']
+          query(jv, "SET SESSION RESOURCE_POOL = #{::Jvertica.quote(resource_pool)}")
         end
 
         if block_given?
