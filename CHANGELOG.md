@@ -1,3 +1,15 @@
+# 0.5.9 (2016/01/26)
+
+Enhancements:
+
+* log speed (rows/sec) of progress
+
+Trivial changes:
+
+* Use ::Jvertica.quote to quote resource_pool
+* change log_level of push / pop finish
+* change log_level of select result from debug to trace
+
 # 0.5.8 (2016/01/24)
 
 Enhancements:
