@@ -54,6 +54,7 @@ module Embulk
           @outer_thread = Thread.current
           @thread_active = false
           @progress_log_timer = Time.now
+          @previous_num_input_rows = 0
 
           case task['compress']
           when 'GZIP'
@@ -92,11 +93,18 @@ module Embulk
             buf << record << "\n"
             @num_input_rows += 1
           end
+          sleep 10
           now = Time.now
           if @progress_log_timer < now - 10 # once in 10 seconds
+            speed = ((@num_input_rows - @previous_num_input_rows) / (now - @progress_log_timer).to_f).round(1)
             @progress_log_timer = now
-            Embulk.logger.info { "embulk-output-vertica: num_input_rows #{@num_input_rows}" }
+            @previous_num_input_rows = @num_input_rows
+            Embulk.logger.info { "embulk-output-vertica: num_input_rows #{num_format(@num_input_rows)} (#{num_format(speed)} rows/sec)" }
           end
+        end
+
+        def num_format(number)
+          number.to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')
         end
 
         def run
