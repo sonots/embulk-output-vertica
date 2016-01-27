@@ -1,3 +1,9 @@
+# 0.6.1 (2016/01/26)
+
+Fixes:
+
+* Remove debug code...
+
 # 0.6.0 (2016/01/26)
 
 Changes:
