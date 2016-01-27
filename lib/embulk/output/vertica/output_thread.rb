@@ -93,7 +93,6 @@ module Embulk
             buf << record << "\n"
             @num_input_rows += 1
           end
-          sleep 10
           now = Time.now
           if @progress_log_timer < now - 10 # once in 10 seconds
             speed = ((@num_input_rows - @previous_num_input_rows) / (now - @progress_log_timer).to_f).round(1)
