@@ -1,3 +1,9 @@
+# 0.6.0 (2016/01/26)
+
+Changes:
+
+* Add `/*+ direct */` hint to insert select if copy_mode == DIRECT
+
 # 0.5.9 (2016/01/26)
 
 Enhancements:
