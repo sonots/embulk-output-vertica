@@ -1,3 +1,9 @@
+# 0.6.2 (2016/01/28)
+
+Enhancements:
+
+* Use `CREATE TABLE LIKE` statement to create a temp table to copy nullable or other parameters
+
 # 0.6.1 (2016/01/26)
 
 Fixes:
