@@ -78,11 +78,9 @@ module Embulk
             query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
           end
 
-          sql_schema_temp_table = self.sql_schema_from_table(jv, task)
-
           # create a temp table
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} (#{sql_schema_temp_table})])
+          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} LIKE #{quoted_schema}.#{quoted_table}])
           # Create internal vertica projection beforehand, otherwirse, parallel copies lock table to create a projection and we get S Lock error sometimes
           # This is a trick to create internal vertica projection
           query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_temp_table} SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 0])
@@ -193,18 +191,6 @@ module Embulk
         when :timestamp then 'TIMESTAMP'
         else raise NotSupportedType, "embulk-output-vertica cannot take column type #{type}"
         end
-      end
-
-      def self.sql_schema_from_table(jv, task)
-        quoted_schema = Jvertica.quote(task['schema'])
-        quoted_table  = Jvertica.quote(task['table'])
-        sql = "SELECT column_name, data_type FROM v_catalog.columns " \
-          "WHERE table_schema = #{quoted_schema} AND table_name = #{quoted_table}"
-
-        sql_schema = {}
-        result = query(jv, sql)
-        sql_schema = result.map {|row| [row[0], row[1]] }
-        sql_schema.map {|name, type| "#{::Jvertica.quote_identifier(name)} #{type}" }.join(',')
       end
 
       def self.query(conn, sql)
