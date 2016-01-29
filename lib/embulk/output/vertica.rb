@@ -46,8 +46,8 @@ module Embulk
         end
 
         task['mode'] = task['mode'].upcase
-        unless %w[INSERT REPLACE].include?(task['mode'])
-          raise ConfigError.new "`mode` must be one of INSERT, REPLACE"
+        unless %w[INSERT DROP_INSERT].include?(task['mode'])
+          raise ConfigError.new "`mode` must be one of INSERT, DROP_INSERT"
         end
 
         task['copy_mode'] = task['copy_mode'].upcase
@@ -74,7 +74,7 @@ module Embulk
             sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
 
             # create the target table
-            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'REPLACE'
+            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'DROP_INSERT'
             query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
           end
 
