@@ -46,8 +46,8 @@ module Embulk
         end
 
         task['mode'] = task['mode'].upcase
-        unless %w[INSERT REPLACE].include?(task['mode'])
-          raise ConfigError.new "`mode` must be one of INSERT, REPLACE"
+        unless %w[INSERT REPLACE DROP_INSERT].include?(task['mode'])
+          raise ConfigError.new "`mode` must be one of INSERT, REPLACE, DROP_INSERT"
         end
 
         task['copy_mode'] = task['copy_mode'].upcase
@@ -74,7 +74,7 @@ module Embulk
             sql_schema_table = self.sql_schema_from_embulk_schema(schema, task['column_options'])
 
             # create the target table
-            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'REPLACE'
+            query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_table}]) if task['mode'] == 'DROP_INSERT'
             query(jv, %[CREATE TABLE IF NOT EXISTS #{quoted_schema}.#{quoted_table} (#{sql_schema_table})])
           end
 
@@ -98,11 +98,20 @@ module Embulk
           task_reports = thread_pool.commit
           Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports.to_json}" }
 
-          # insert select from the temp table
           connect(task) do |jv|
-            hint = '/*+ direct */ ' if task['copy_mode'] == 'DIRECT' # I did not prepare a specific option, does anyone want?
-            query(jv, %[INSERT #{hint}INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
-            jv.commit
+            if task['mode'] == 'REPLACE'
+              # swap table and drop the old table
+              quoted_old_table = ::Jvertica.quote_identifier("#{task['table']}_LOAD_OLD_#{unique_name}")
+              from = "#{quoted_schema}.#{quoted_table},#{quoted_schema}.#{quoted_temp_table}"
+              to   = "#{quoted_old_table},#{quoted_table}"
+              query(jv, %[ALTER TABLE #{from} RENAME TO #{to}])
+              query(jv, %[DROP TABLE #{quoted_schema}.#{quoted_old_table}])
+            else
+              # insert select from the temp table
+              hint = '/*+ direct */ ' if task['copy_mode'] == 'DIRECT' # I did not prepare a specific option, does anyone want?
+              query(jv, %[INSERT #{hint}INTO #{quoted_schema}.#{quoted_table} SELECT * FROM #{quoted_schema}.#{quoted_temp_table}])
+              jv.commit
+            end
           end
         ensure
           connect(task) do |jv|

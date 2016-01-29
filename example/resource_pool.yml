@@ -1,10 +1,3 @@
-# in:
-#   type: random
-#   rows: 100
-#   schema:
-#     id: primary_key
-#     name: string
-#     score: integer
 in:
   type: file
   path_prefix: example/example.csv
@@ -30,16 +23,12 @@ out:
   password: xxxxxxx
   database: vdb
   schema: sandbox
-  table: embulk_test
-  mode: drop_insert
+  table: jvertica_test
+  mode: drop_inesrt
   copy_mode: DIRECT
   abort_on_error: true
   reject_on_materialized_type_error: true
   default_timezone: 'Asia/Tokyo'
-  column_options:
-    timestamp_date:  {type: DATE}
-    string_date:     {type: TIMESTAMPTZ, value_type: timestamp, timestamp_format: "%Y-%m-%d", timezone: '+08:00'}
-    id:              {type: INT}
-    name:            {type: VARCHAR}
-    score:           {type: INT, value_type: long}
-
+  pool: 3
+  compress: GZIP
+  resource_pool: default
