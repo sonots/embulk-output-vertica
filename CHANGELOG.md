@@ -1,3 +1,13 @@
+# 0.7.0 (2016/01/29)
+
+Breaking Changes:
+
+* rename mode `REPLACE` to `DROP_INSERT`
+
+Enhancements:
+
+* Add mode `REPLACE` which copies rows to an intermediate table first. If all those tasks run correctly, swaps the target table and the intermediate table, and drops the old target table
+
 # 0.6.2 (2016/01/28)
 
 Enhancements:
