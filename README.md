@@ -46,7 +46,7 @@
 * **insert**:
   * Behavior: This mode copies rows to some intermediate tables first. If all those tasks run correctly, runs INSERT INTO <target_table> SELECT * FROM <intermediate_table>
 * **replace**:
-  * Behavior: This mode copies rows to an intermediate table first. If all those tasks run correctly, swaps the target table and the intermediate table, and drops the original target table
+  * Behavior: This mode copies rows to an intermediate table first. If all those tasks run correctly, swaps the target table and the intermediate table, and drops the old target table
 * **drop_insert**:
   * Behavior: Same with insert mode excepting that it drops the target table first. This is aimed to use for development.
 
