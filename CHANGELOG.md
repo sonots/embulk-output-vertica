@@ -1,3 +1,9 @@
+# 0.7.1 (2016/01/30)
+
+Enhancements:
+
+* Create table with INCLUDING PROJECTIONS on mode `REPLACE`
+
 # 0.7.0 (2016/01/29)
 
 Breaking Changes:
