@@ -80,10 +80,16 @@ module Embulk
 
           # create a temp table
           query(jv, %[DROP TABLE IF EXISTS #{quoted_schema}.#{quoted_temp_table}])
-          query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} LIKE #{quoted_schema}.#{quoted_table}])
-          # Create internal vertica projection beforehand, otherwirse, parallel copies lock table to create a projection and we get S Lock error sometimes
-          # This is a trick to create internal vertica projection
-          query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_temp_table} SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 0])
+
+          if task['mode'] == 'REPLACE'
+            # In the case of replace mode, this temp table is replaced with the original table. So, projections should also be copied
+            query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} LIKE #{quoted_schema}.#{quoted_table} INCLUDING PROJECTIONS])
+          else
+            query(jv, %[CREATE TABLE #{quoted_schema}.#{quoted_temp_table} LIKE #{quoted_schema}.#{quoted_table}])
+            # Create internal vertica projection beforehand, otherwirse, parallel copies lock table to create a projection and we get S Lock error sometimes
+            # This is a trick to create internal vertica projection
+            query(jv, %[INSERT INTO #{quoted_schema}.#{quoted_temp_table} SELECT * FROM #{quoted_schema}.#{quoted_table} LIMIT 0])
+          end
           Embulk.logger.trace {
             result = query(jv, %[SELECT EXPORT_OBJECTS('', '#{task['schema']}.#{task['temp_table']}')])
             # You can see `CREATE PROJECTION` if the table has a projection
