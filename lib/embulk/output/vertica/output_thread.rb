@@ -3,6 +3,24 @@ require 'zlib'
 module Embulk
   module Output
     class Vertica < OutputPlugin
+      class CommitError < ::StandardError; end
+      class TimeoutError < ::Timeout::Error; end
+      class EnqueueTimeoutError < TimeoutError; end
+      class DequeueTimeoutError < TimeoutError; end
+      class RollbackTimeoutError < TimeoutError; end
+      class CloseTimeoutError < TimeoutError; end
+      class CommitTimeoutError < TimeoutError; end
+      class FinishTimeoutError < TimeoutError; end
+      class WriteTimeoutError < TimeoutError; end
+
+      ROLLBACK_TIMEOUT = 1 * 60 # sec
+      CLOSE_TIMEOUT = 1 * 60 # sec
+      COMMIT_TIMEOUT = 5 * 60 # sec
+      FINISH_TIMEOUT = 6 * 60 # sec
+      WRITE_TIMEOUT = 11 * 60 # sec
+      DEQUEUE_TIMEOUT = 12 * 60 # sec
+      ENQUEUE_TIMEOUT = 13 * 60 # sec
+
       class OutputThreadPool
         def initialize(task, schema, size)
           @task = task
@@ -30,7 +48,14 @@ module Embulk
         end
 
         def commit
-          task_reports = @size.times.map {|i| @output_threads[i].commit }
+          Embulk.logger.debug "embulk-output-vertica: commit"
+          task_reports = @mutex.synchronize do
+            @size.times.map {|i| @output_threads[i].commit }
+          end
+          unless task_reports.all? {|task_report| task_report['success'] }
+            raise CommitError, "some of output_threads failed to commit"
+          end
+          task_reports
         end
 
         def to_json(record)
@@ -67,7 +92,9 @@ module Embulk
         def enqueue(json_page)
           if @thread_active and @thread.alive?
             Embulk.logger.trace { "embulk-output-vertica: enqueue" }
-            @queue.push(json_page)
+            Timeout.timeout(ENQUEUE_TIMEOUT, EnqueueTimeoutError) do
+              @queue.push(json_page)
+            end
           else
             Embulk.logger.info { "embulk-output-vertica: thread is dead, but still trying to enqueue" }
             raise RuntimeError, "embulk-output-vertica: thread is died, but still trying to enqueue"
@@ -93,7 +120,7 @@ module Embulk
           i = 0
           # split str not to be blocked (max size of pipe buf is 64k bytes on Linux, Mac at default)
           while substr = str[i, PIPE_BUF]
-            io.write(substr)
+            Timeout.timeout(WRITE_TIMEOUT, WriteTimeoutError) { io.write(substr) }
             i += PIPE_BUF
           end
         end
@@ -121,7 +148,8 @@ module Embulk
         # @return [Array] dequeued json_page
         # @return [String] 'finish' is dequeued to finish
         def dequeue
-          json_page = @queue.pop
+          json_page = nil
+          Timeout.timeout(DEQUEUE_TIMEOUT, DequeueTimeoutError) { json_page = @queue.pop }
           Embulk.logger.trace { "embulk-output-vertica: dequeued" }
           Embulk.logger.debug { "embulk-output-vertica: dequeued finish" } if json_page == 'finish'
           json_page
@@ -147,7 +175,7 @@ module Embulk
           @num_output_rows += num_output_rows
           @num_rejected_rows += rejected_row_nums.size
           Embulk.logger.info { "embulk-output-vertica: COMMIT!" }
-          jv.commit
+          Timeout.timeout(COMMIT_TIMEOUT, CommitTimeoutError) { jv.commit }
           Embulk.logger.debug { "embulk-output-vertica: COMMITTED!" }
 
           if rejected_row_nums.size > 0
@@ -159,7 +187,8 @@ module Embulk
 
         def run
           Embulk.logger.debug { "embulk-output-vertica: thread started" }
-          Vertica.connect(@task) do |jv|
+          begin
+            jv = Vertica.connect(@task)
             begin
               num_output_rows, rejected_row_nums, last_record = copy(jv, copy_sql)
               Embulk.logger.debug { "embulk-output-vertica: thread finished" }
@@ -170,20 +199,43 @@ module Embulk
                 Embulk.logger.warn "embulk-output-vertica: ROLLBACK! #{rejected_row_nums}"
               end
               Embulk.logger.info { "embulk-output-vertica: last_record: #{last_record}" }
-              jv.rollback
-              raise e # die transaction
+              rollback(jv)
+              raise e
             rescue => e
               Embulk.logger.warn "embulk-output-vertica: ROLLBACK! #{e.class} #{e.message}"
-              jv.rollback
+              rollback(jv)
               raise e
             end
+          ensure
+            close(jv)
           end
         rescue => e
+          Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
+          Embulk.logger.debug "embulk-output-vertica: dequeue all"
           while @queue.size > 0
             @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
           end
-          @outer_thread.raise e.class.new("#{e.message}\n  #{e.backtrace.join("\n  ")}")
+          Embulk.logger.debug "embulk-output-vertica: exit(1)"
+          exit(1)
+          # Embulk.logger.debug "embulk-output-vertica: @outer_thread.raise"
+          # @outer_thread.raise e.class.new("#{e.message}\n  #{e.backtrace.join("\n  ")}")
+        end
+
+        def close(jv)
+          begin
+            Timeout.timeout(CLOSE_TIMEOUT, CloseTimeoutError) { jv.close }
+          rescue TimeoutError => ex
+            Embulk.logger.warn "embulk-output-vertica: CLOSE timeout"
+          end
+        end
+
+        def rollback(jv)
+          begin
+            Timeout.timeout(ROLLBACK_TIMEOUT, RollbackTimeoutError) { jv.rollback }
+          rescue TimeoutError => ex
+            Embulk.logger.warn "embulk-output-vertica: ROLLBACK timeout"
+          end
         end
 
         def start
@@ -192,20 +244,29 @@ module Embulk
         end
 
         def commit
+          Embulk.logger.debug "embulk-output-vertica: output_thread commit"
           @thread_active = false
+          success = true
           if @thread.alive?
             Embulk.logger.debug { "embulk-output-vertica: push finish" }
             @queue.push('finish')
             Thread.pass
-            @thread.join
+            @thread.join(FINISH_TIMEOUT)
+            if @thread.alive?
+              @thread.kill
+              Embulk.logger.error "embulk-output-vertica: hard_limit #{FINISH_TIMEOUT}sec exceeded, thread is killed forcely"
+              success = false
+            end
           else
-            raise RuntimeError, "embulk-output-vertica: thread died accidently"
+            Embulk.logger.error "embulk-output-vertica: thread died accidently"
+            success = false
           end
 
           task_report = {
             'num_input_rows' => @num_input_rows,
             'num_output_rows' => @num_output_rows,
             'num_rejected_rows' => @num_rejected_rows,
+            'success' => success
           }
         end
 
