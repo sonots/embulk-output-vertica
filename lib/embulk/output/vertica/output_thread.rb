@@ -92,7 +92,7 @@ module Embulk
           str = str.force_encoding('ASCII-8BIT')
           i = 0
           # split str not to be blocked (max size of pipe buf is 64k bytes on Linux, Mac at default)
-         while substr = str[i, PIPE_BUF]
+          while substr = str[i, PIPE_BUF]
             io.write(substr)
             i += PIPE_BUF
           end
