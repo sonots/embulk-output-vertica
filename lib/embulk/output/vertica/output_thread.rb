@@ -118,42 +118,62 @@ module Embulk
           number.to_s.gsub(/(\d)(?=(\d{3})+(?!\d))/, '\1,')
         end
 
+        # @return [Array] dequeued json_page
+        # @return [String] 'finish' is dequeued to finish
+        def dequeue
+          json_page = @queue.pop
+          Embulk.logger.trace { "embulk-output-vertica: dequeued" }
+          Embulk.logger.debug { "embulk-output-vertica: dequeued finish" } if json_page == 'finish'
+          json_page
+        end
+
+        def copy(jv, sql, &block)
+          Embulk.logger.debug "embulk-output-vertica: #{sql}"
+          num_output_rows = 0; rejected_row_nums = []; last_record = nil
+
+          json_page = dequeue
+          return [num_output_rows, rejected_row_nums, last_record] if json_page == 'finish'
+
+          num_output_rows, rejected_row_nums = jv.copy(sql) do |stdin, stream|
+            @write_proc.call(stdin, json_page) {|record| last_record = record }
+
+            while true
+              json_page = dequeue
+              break if json_page == 'finish'
+              @write_proc.call(stdin, json_page) {|record| last_record = record }
+            end
+          end
+
+          @num_output_rows += num_output_rows
+          @num_rejected_rows += rejected_row_nums.size
+          Embulk.logger.info { "embulk-output-vertica: COMMIT!" }
+          jv.commit
+          Embulk.logger.debug { "embulk-output-vertica: COMMITTED!" }
+
+          if rejected_row_nums.size > 0
+            Embulk.logger.debug { "embulk-output-vertica: rejected_row_nums: #{rejected_row_nums}" }
+          end
+
+          [num_output_rows, rejected_row_nums, last_record]
+        end
+
         def run
           Embulk.logger.debug { "embulk-output-vertica: thread started" }
           Vertica.connect(@task) do |jv|
             begin
-              last_record = nil
-              num_output_rows, rejects = copy(jv, copy_sql) do |stdin|
-                while json_page = @queue.pop
-                  if json_page == 'finish'
-                    Embulk.logger.debug { "embulk-output-vertica: popped finish" }
-                    break
-                  end
-                  Embulk.logger.trace { "embulk-output-vertica: dequeued" }
-
-                  @write_proc.call(stdin, json_page) do |record|
-                    last_record = record
-                  end
-                end
-              end
+              num_output_rows, rejected_row_nums, last_record = copy(jv, copy_sql)
               Embulk.logger.debug { "embulk-output-vertica: thread finished" }
-              num_rejected_rows = rejects.size
-              @num_output_rows += num_output_rows
-              @num_rejected_rows += num_rejected_rows
-              Embulk.logger.info { "embulk-output-vertica: COMMIT!" }
-              jv.commit
-              Embulk.logger.debug { "embulk-output-vertica: COMMITTED!" }
             rescue java.sql.SQLDataException => e
               if @task['reject_on_materialized_type_error'] and e.message =~ /Rejected by user-defined parser/
-                Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{last_record}"
+                Embulk.logger.warn "embulk-output-vertica: ROLLBACK! some of column types and values types do not fit #{rejected_row_nums}"
               else
-                Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+                Embulk.logger.warn "embulk-output-vertica: ROLLBACK! #{rejected_row_nums}"
               end
               Embulk.logger.info { "embulk-output-vertica: last_record: #{last_record}" }
               jv.rollback
               raise e # die transaction
             rescue => e
-              Embulk.logger.warn "embulk-output-vertica: ROLLBACK!"
+              Embulk.logger.warn "embulk-output-vertica: ROLLBACK! #{e.class} #{e.message}"
               jv.rollback
               raise e
             end
@@ -190,11 +210,6 @@ module Embulk
         end
 
         # private
-
-        def copy(conn, sql, &block)
-          Embulk.logger.debug "embulk-output-vertica: #{sql}"
-          results, rejects = conn.copy(sql, &block)
-        end
 
         def copy_sql
           @copy_sql ||= "COPY #{quoted_schema}.#{quoted_temp_table} FROM STDIN#{compress}#{fjsonparser}#{copy_mode}#{abort_on_error} NO COMMIT"
