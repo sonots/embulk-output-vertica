@@ -77,13 +77,25 @@ module Embulk
         def write_gzip(io, page, &block)
           buf = Zlib::Deflate.new
           write_buf(buf, page, &block)
-          io << buf.finish
+          write_io(io, buf.finish)
         end
 
         def write_uncompressed(io, page, &block)
           buf = ''
           write_buf(buf, page, &block)
-          io << buf
+          write_io(io, buf)
+        end
+
+        PIPE_BUF = 4096
+
+        def write_io(io, str)
+          str = str.force_encoding('ASCII-8BIT')
+          i = 0
+          # split str not to be blocked (max size of pipe buf is 64k bytes on Linux, Mac at default)
+         while substr = str[i, PIPE_BUF]
+            io.write(substr)
+            i += PIPE_BUF
+          end
         end
 
         def write_buf(buf, json_page, &block)
