@@ -1,3 +1,10 @@
+# 0.7.2 (2016/02/10)
+
+Fixes:
+
+* Fix to get stuck if no input is comming
+* Fix to get stcuk if one record is longer thant IO pipe maximum size (64k bytes for Linux, and Mac OSX)
+
 # 0.7.1 (2016/01/30)
 
 Enhancements:
