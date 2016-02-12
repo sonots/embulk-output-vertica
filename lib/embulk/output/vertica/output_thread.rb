@@ -225,6 +225,7 @@ module Embulk
             close(jv)
           end
         rescue TimeoutError => e
+          Embulk.logger.error "embulk-output-vertica: UNKNOWN TIMEOUT!!"
           Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
           Embulk.logger.debug "embulk-output-vertica: dequeue all"
