@@ -20,6 +20,7 @@ module Embulk
       WRITE_TIMEOUT = 11 * 60 # sec
       DEQUEUE_TIMEOUT = 12 * 60 # sec
       ENQUEUE_TIMEOUT = 13 * 60 # sec
+      $embulk_output_vertica_thread_dumped = false
 
       class OutputThreadPool
         def initialize(task, schema, size)
@@ -89,6 +90,19 @@ module Embulk
           end
         end
 
+        def thread_dump
+          unless $embulk_output_vertica_thread_dumped
+            $embulk_output_vertica_thread_dumped = true
+            Embulk.logger.debug "embulk-output-vertica: kill -3 #{$$} (Thread dump)"
+            begin
+              Process.kill :QUIT, $$
+            rescue SignalException
+            ensure
+              sleep 1
+            end
+          end
+        end
+
         def enqueue(json_page)
           if @thread_active and @thread.alive?
             Embulk.logger.trace { "embulk-output-vertica: enqueue" }
@@ -97,6 +111,7 @@ module Embulk
             end
           else
             Embulk.logger.info { "embulk-output-vertica: thread is dead, but still trying to enqueue" }
+            thread_dump
             raise RuntimeError, "embulk-output-vertica: thread is died, but still trying to enqueue"
           end
         end
@@ -209,17 +224,23 @@ module Embulk
           ensure
             close(jv)
           end
-        rescue => e
+        rescue TimeoutError => e
           Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
           Embulk.logger.debug "embulk-output-vertica: dequeue all"
           while @queue.size > 0
             @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
           end
+          thread_dump
           Embulk.logger.debug "embulk-output-vertica: exit(1)"
           exit(1)
-          # Embulk.logger.debug "embulk-output-vertica: @outer_thread.raise"
-          # @outer_thread.raise e.class.new("#{e.message}\n  #{e.backtrace.join("\n  ")}")
+        rescue => e
+          @thread_active = false # not to be enqueued any more
+          while @queue.size > 0
+            @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
+          end
+          Embulk.logger.debug "embulk-output-vertica: @outer_thread.raise"
+          @outer_thread.raise e.class.new("#{e.message}\n  #{e.backtrace.join("\n  ")}")
         end
 
         def close(jv)
