@@ -171,11 +171,14 @@ module Embulk
         end
 
         def copy(jv, sql, &block)
-          Embulk.logger.debug "embulk-output-vertica: #{sql}"
+          Embulk.logger.debug "embulk-output-vertica: copy, waiting a first message"
+
           num_output_rows = 0; rejected_row_nums = []; last_record = nil
 
           json_page = dequeue
           return [num_output_rows, rejected_row_nums, last_record] if json_page == 'finish'
+
+          Embulk.logger.debug "embulk-output-vertica: #{sql}"
 
           num_output_rows, rejected_row_nums = jv.copy(sql) do |stdin, stream|
             @write_proc.call(stdin, json_page) {|record| last_record = record }
@@ -241,7 +244,7 @@ module Embulk
             @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
           end
           Embulk.logger.debug "embulk-output-vertica: @outer_thread.raise"
-          @outer_thread.raise e.class.new("#{e.message}\n  #{e.backtrace.join("\n  ")}")
+          @outer_thread.raise e
         end
 
         def close(jv)
