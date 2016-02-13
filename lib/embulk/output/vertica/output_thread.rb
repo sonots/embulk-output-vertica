@@ -236,7 +236,7 @@ module Embulk
           end
           thread_dump
           exit(1)
-        rescue => e
+        rescue Exception => e
           Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
           Embulk.logger.debug "embulk-output-vertica: dequeue all"
