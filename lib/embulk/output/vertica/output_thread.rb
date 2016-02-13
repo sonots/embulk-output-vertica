@@ -220,26 +220,26 @@ module Embulk
               rollback(jv)
               raise e
             rescue => e
-              Embulk.logger.warn "embulk-output-vertica: ROLLBACK! #{e.class} #{e.message}"
+              Embulk.logger.warn "embulk-output-vertica: ROLLBACK! #{e.class} #{e.message} #{e.backtrace.join("\n  ")}"
               rollback(jv)
+              Embulk.logger.debug "embulk-output-vertica: raise e"
               raise e
             end
           ensure
             close(jv)
           end
         rescue TimeoutError => e
-          Embulk.logger.error "embulk-output-vertica: UNKNOWN TIMEOUT!!"
-          Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
+          Embulk.logger.error "embulk-output-vertica: UNKNOWN TIMEOUT!! #{e.class}"
           @thread_active = false # not to be enqueued any more
-          Embulk.logger.debug "embulk-output-vertica: dequeue all"
           while @queue.size > 0
             @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
           end
           thread_dump
-          Embulk.logger.debug "embulk-output-vertica: exit(1)"
           exit(1)
         rescue => e
+          Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
+          Embulk.logger.debug "embulk-output-vertica: dequeue all"
           while @queue.size > 0
             @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
           end
