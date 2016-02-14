@@ -12,6 +12,7 @@ module Embulk
       class CommitTimeoutError < TimeoutError; end
       class FinishTimeoutError < TimeoutError; end
       class WriteTimeoutError < TimeoutError; end
+      class DequeueAllTimeoutError < TimeoutError; end
 
       ROLLBACK_TIMEOUT = 1 * 60 # sec
       CLOSE_TIMEOUT = 1 * 60 # sec
@@ -20,6 +21,7 @@ module Embulk
       WRITE_TIMEOUT = 11 * 60 # sec
       DEQUEUE_TIMEOUT = 12 * 60 # sec
       ENQUEUE_TIMEOUT = 13 * 60 # sec
+      DEQUEUE_ALL_TIMEOUT = 1 * 60 # sec
       $embulk_output_vertica_thread_dumped = false
 
       class OutputThreadPool
@@ -230,22 +232,31 @@ module Embulk
           end
         rescue TimeoutError => e
           Embulk.logger.error "embulk-output-vertica: UNKNOWN TIMEOUT!! #{e.class}"
+          Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
-          while @queue.size > 0
-            @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
-          end
+          dequeue_all
           thread_dump
           exit(1)
         rescue Exception => e
           Embulk.logger.error "embulk-output-vertica: UNKNOWN ERROR! #{e.class} #{e.message} #{e.backtrace.join("\n  ")}"
           Embulk.logger.debug "embulk-output-vertica: @thread_active = false"
           @thread_active = false # not to be enqueued any more
-          Embulk.logger.debug "embulk-output-vertica: dequeue all"
-          while @queue.size > 0
-            @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
-          end
+          dequeue_all
           Embulk.logger.debug "embulk-output-vertica: @outer_thread.raise"
           @outer_thread.raise e
+        end
+
+        def dequeue_all
+          Embulk.logger.debug "embulk-output-vertica: dequeue all"
+          begin
+            Timeout.timeout(DEQUEUE_ALL_TIMEOUT, DequeueAllTimeoutError) {
+              while @queue.size > 0
+                @queue.pop # dequeue all because some might be still trying @queue.push and get blocked, need to release
+              end
+            }
+          rescue TimeoutError => ex
+            Embulk.logger.warn "embulk-output-vertica: DEQUEUE ALL timeout"
+          end
         end
 
         def close(jv)
