@@ -262,16 +262,20 @@ module Embulk
         def close(jv)
           begin
             Timeout.timeout(CLOSE_TIMEOUT, CloseTimeoutError) { jv.close }
-          rescue TimeoutError => ex
+          rescue TimeoutError => e
             Embulk.logger.warn "embulk-output-vertica: CLOSE timeout"
+          rescue Java::JavaSql::SQLException => e # The connection is closed
+            Embulk.logger.debug "embulk-output-vertica: #{e.class} #{e.message}"
           end
         end
 
         def rollback(jv)
           begin
             Timeout.timeout(ROLLBACK_TIMEOUT, RollbackTimeoutError) { jv.rollback }
-          rescue TimeoutError => ex
+          rescue TimeoutError => e
             Embulk.logger.warn "embulk-output-vertica: ROLLBACK timeout"
+          rescue Java::JavaSql::SQLException => e # The connection is closed
+            Embulk.logger.debug "embulk-output-vertica: #{e.class} #{e.message}"
           end
         end
 
