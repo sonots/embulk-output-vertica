@@ -1,11 +1,11 @@
 Gem::Specification.new do |spec|
   spec.name          = "embulk-output-vertica"
   spec.version       = "0.7.2"
-  spec.authors       = ["eiji.sekiya", "Naotoshi Seo"]
-  spec.email         = ["eiji.sekiya.0326@gmail.com", "sonots@gmail.com"]
+  spec.authors       = ["Naotoshi Seo", "Eiji Sekiya"]
+  spec.email         = ["sonots@gmail.com", "eiji.sekiya.0326@gmail.com"]
   spec.summary       = "Vertica output plugin for Embulk"
   spec.description   = "Dump records to vertica"
-  spec.homepage      = "https://github.com/eratostennis/embulk-output-vertica"
+  spec.homepage      = "https://github.com/sonots/embulk-output-vertica"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
