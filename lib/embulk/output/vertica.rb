@@ -34,6 +34,9 @@ module Embulk
           'resource_pool'    => config.param('resource_pool',    :string,  :default => nil),
           'reject_on_materialized_type_error' => config.param('reject_on_materialized_type_error', :bool, :default => false),
           'pool'             => config.param('pool',             :integer, :default => processor_count),
+          'write_timeout'    => config.param('write_timeout',    :integer, :default => nil), # like 11 * 60 sec
+          'dequeue_timeout'  => config.param('dequeue_timeout',  :integer, :default => nil), # like 13 * 60 sec
+          'finish_timeout'   => config.param('finish_timeout',   :integer, :default => nil), # like 3 * 60 sec
         }
 
         @thread_pool_proc = Proc.new do
