@@ -1,3 +1,15 @@
+# 0.7.3 (2016/03/27)
+
+Enhancements:
+
+* Add write_timeout option
+* Add finish_timeout option
+* Add dequeuen_timeout option
+
+Changes:
+
+* Transfer repository from eratostennis to sonots
+
 # 0.7.2 (2016/02/10)
 
 Fixes:
