@@ -1,4 +1,5 @@
 require 'jvertica'
+require 'securerandom'
 require_relative 'vertica/value_converter_factory'
 require_relative 'vertica/output_thread'
 
@@ -82,7 +83,7 @@ module Embulk
         end
 
         now = Time.now
-        unique_name = "%08x%08x" % [now.tv_sec, now.tv_nsec]
+        unique_name = SecureRandom.uuid
         task['temp_table'] = "#{task['table']}_LOAD_TEMP_#{unique_name}"
 
         quoted_schema     = ::Jvertica.quote_identifier(task['schema'])
