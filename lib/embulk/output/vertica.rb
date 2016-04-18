@@ -128,6 +128,13 @@ module Embulk
             transaction_report = self.transaction_report(jv, task, task_reports)
             Embulk.logger.info { "embulk-output-vertica: transaction_report: #{transaction_report.to_json}" }
 
+            if task['abort_on_error'] # double-meaning, also used for COPY statement
+              if transaction_report['num_input_rows'] != transaction_report['num_output_rows']
+                raise Error, "ABORT: `num_input_rows (#{transaction_report['num_input_rows']})` and " \
+                  "`num_output_rows (#{transaction_report['num_output_rows']})` does not match"
+              end
+            end
+
             if task['mode'] == 'REPLACE'
               # swap table and drop the old table
               quoted_old_table = ::Jvertica.quote_identifier("#{task['table']}_LOAD_OLD_#{unique_name}")
