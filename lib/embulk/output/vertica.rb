@@ -14,6 +14,23 @@ module Embulk
         @thread_pool ||= @thread_pool_proc.call
       end
 
+      def self.transaction_report(jv, task, task_reports)
+        quoted_schema     = ::Jvertica.quote_identifier(task['schema'])
+        quoted_temp_table = ::Jvertica.quote_identifier(task['temp_table'])
+
+        num_input_rows = task_reports.map {|report| report['num_input_rows'].to_i }.inject(:+)
+        num_response_rows = task_reports.map {|report| report['num_output_rows'].to_i }.inject(:+)
+        result = query(jv, %[SELECT COUNT(*) FROM #{quoted_schema}.#{quoted_temp_table}])
+        num_output_rows = result.map {|row| row.values }.flatten.first.to_i
+        num_rejected_rows = num_input_rows - num_output_rows
+        transaction_report = {
+          'num_input_rows' => num_input_rows,
+          'num_response_rows' => num_response_rows,
+          'num_output_rows' => num_output_rows,
+          'num_rejected_rows' => num_rejected_rows,
+        }
+      end
+
       def self.transaction(config, schema, task_count, &control)
         task = {
           'host'             => config.param('host',             :string,  :default => 'localhost'),
@@ -108,6 +125,9 @@ module Embulk
           Embulk.logger.info { "embulk-output-vertica: task_reports: #{task_reports.to_json}" }
 
           connect(task) do |jv|
+            transaction_report = self.transaction_report(jv, task, task_reports)
+            Embulk.logger.info { "embulk-output-vertica: transaction_report: #{transaction_report.to_json}" }
+
             if task['mode'] == 'REPLACE'
               # swap table and drop the old table
               quoted_old_table = ::Jvertica.quote_identifier("#{task['table']}_LOAD_OLD_#{unique_name}")

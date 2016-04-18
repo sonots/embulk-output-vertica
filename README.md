@@ -75,7 +75,7 @@ Run example:
 
 ```
 $ embulk bundle install --path vendor/bundle
-$ embulk -J-O -R--dev run -b . -l debug example.yml
+$ embulk -J-O -R--dev run -b . -l debug example/example.yml
 ```
 
 Release gem:
