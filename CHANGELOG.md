@@ -1,3 +1,9 @@
+# 0.7.4 (2016/05/07)
+
+Fixes:
+
+* Add missing "require 'timeout'"
+
 # 0.7.3 (2016/03/27)
 
 Enhancements:
