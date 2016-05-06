@@ -1,4 +1,5 @@
 require 'zlib'
+require 'timeout'
 
 module Embulk
   module Output
