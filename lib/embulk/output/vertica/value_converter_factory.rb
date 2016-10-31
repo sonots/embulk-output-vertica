@@ -1,5 +1,5 @@
 require 'time'
-require 'tzinfo'
+require 'time_with_zone'
 
 module Embulk
   module Output
@@ -32,7 +32,7 @@ module Embulk
           if @schema_type == :timestamp || @value_type == 'timestamp'
             @timestamp_format = timestamp_format
             @timezone = timezone
-            @zone_offset = get_zone_offset(@timezone) if @timezone
+            @zone_offset = TimeWithZone.zone_offset(@timezone) if @timezone
           end
         end
 
@@ -83,7 +83,7 @@ module Embulk
           when 'long'      then Proc.new {|val| val.to_i }
           when 'double'    then Proc.new {|val| val.to_f }
           when 'string'    then Proc.new {|val| val }
-          when 'timestamp' then Proc.new {|val| val ? strptime_with_zone(val, timestamp_format, zone_offset) : nil }
+          when 'timestamp' then Proc.new {|val| val ? TimeWithZone.set_zone_offset(Time.strptime(val, timestamp_format), zone_offset) : nil }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for string column"
           end
         end
@@ -96,31 +96,6 @@ module Embulk
           when 'string'    then Proc.new {|val| val ? val.localtime(zone_offset).strftime(timestamp_format) : nil }
           when 'timestamp' then Proc.new {|val| val ? val.localtime(zone_offset) : nil }
           else raise NotSupportedType, "embulk-output-vertica cannot take column value_type #{value_type} for timesatmp column"
-          end
-        end
-
-        private
-        
-        # [+-]HH:MM, [+-]HHMM, [+-]HH
-        NUMERIC_PATTERN = %r{\A[+-]\d\d(:?\d\d)?\z}
-
-        # Region/Zone, Region/Zone/Zone
-        NAME_PATTERN = %r{\A[^/]+/[^/]+(/[^/]+)?\z}
-
-        def strptime_with_zone(date, timestamp_format, zone_offset)
-          time = Time.strptime(date, timestamp_format)
-          utc_offset = time.utc_offset
-          time.localtime(zone_offset) + utc_offset - zone_offset
-        end
-
-        def get_zone_offset(timezone)
-          if NUMERIC_PATTERN === timezone
-            Time.zone_offset(timezone)
-          elsif NAME_PATTERN === timezone || 'UTC' == timezone
-            tz = TZInfo::Timezone.get(timezone)
-            tz.period_for_utc(Time.now).utc_total_offset
-          else
-            raise ArgumentError, "timezone format is invalid: #{timezone}"
           end
         end
       end
